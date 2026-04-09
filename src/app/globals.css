@@ -1,0 +1,413 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f9ff;
+  --foreground: #0c1733;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  background: var(--background);
+  min-height: 100%;
+  scroll-padding-top: 6.5rem;
+}
+
+@media (min-width: 640px) {
+  html {
+    scroll-padding-top: 7rem;
+  }
+}
+
+@media (min-width: 768px) {
+  html {
+    scroll-padding-top: 8.25rem;
+  }
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+/* —— App-wide typography & layout (use these for consistent sections) —— */
+@layer components {
+  .app-container {
+    @apply mx-auto w-full max-w-[1200px] px-6 sm:px-8;
+  }
+
+  .app-section {
+    @apply w-full py-14 md:py-16 lg:py-20;
+  }
+
+  /** Primary section heading (same size on every section) */
+  .app-section-title {
+    @apply text-2xl font-extrabold tracking-tight sm:text-3xl;
+  }
+
+  .app-section-title--light {
+    @apply text-[#0a1628];
+  }
+
+  .app-section-title--inverse {
+    @apply text-white;
+  }
+
+  /** One-line intro under the section title */
+  .app-section-lead {
+    @apply mt-3 max-w-2xl text-base leading-relaxed sm:text-lg;
+  }
+
+  .app-section-lead--center {
+    @apply mx-auto text-center;
+  }
+
+  .app-section-lead--light {
+    @apply text-[#5b6b8c];
+  }
+
+  .app-section-lead--inverse {
+    @apply text-[#9ca3af];
+  }
+
+  /** Space between header block and cards / grid */
+  .app-section-body {
+    @apply mt-10 md:mt-12;
+  }
+
+  /** Default paragraph / list copy */
+  .app-body {
+    @apply text-sm leading-relaxed sm:text-[0.9375rem];
+  }
+
+  .app-body--light {
+    @apply text-[#5c6578];
+  }
+
+  .app-body--inverse {
+    @apply text-[#a1a1aa];
+  }
+
+  /** Small uppercase label above a title */
+  .app-eyebrow {
+    @apply text-xs font-semibold tracking-[0.2em] uppercase;
+  }
+
+  .app-eyebrow--inverse {
+    @apply text-white;
+  }
+
+  /** Card titles (feature cards, etc.) */
+  .app-card-title {
+    @apply text-lg font-bold tracking-tight text-[#0a0a0a] sm:text-xl;
+  }
+
+  /** Step titles (journey), subsection headings */
+  .app-step-title {
+    @apply text-base font-bold text-[#0a1628] sm:text-lg;
+  }
+
+  /** Hero only — larger than section titles */
+  .app-hero-title {
+    @apply max-w-2xl text-[clamp(2rem,3.8vw,3.25rem)] font-extrabold leading-tight tracking-[-0.02em] text-[#081430];
+  }
+
+  .app-hero-lead {
+    @apply mt-5 max-w-lg text-base leading-relaxed text-[#5f6981] sm:text-lg;
+  }
+
+  /** Full-width punch line band */
+  .app-tagline {
+    @apply text-center text-2xl font-extrabold tracking-tight text-[#555555] sm:text-3xl md:text-4xl lg:text-5xl;
+  }
+
+  /** Bold line on dark (e.g. “We believe:”) */
+  .app-bold-inverse {
+    @apply text-base font-bold text-white sm:text-lg;
+  }
+}
+
+/* Infinite horizontal marquee (content duplicated 2× in markup) */
+@keyframes app-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.app-marquee-track {
+  will-change: transform;
+}
+
+.app-marquee-track--forward {
+  animation: app-marquee 48s linear infinite;
+}
+
+/* Same distance as forward (-50% with duplicated content), opposite direction */
+.app-marquee-track--reverse {
+  animation: app-marquee 56s linear infinite reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-marquee-track--forward,
+  .app-marquee-track--reverse {
+    animation: none;
+  }
+}
+
+/** Soft edge fade on horizontal marquees */
+.app-marquee-fade {
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+
+/* —— Scroll reveal (used with <Reveal />; respects reduced motion) —— */
+.app-reveal {
+  opacity: 0;
+  transform: translate3d(0, 1.75rem, 0);
+  filter: blur(4px);
+  transition:
+    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.app-reveal--visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  filter: blur(0);
+}
+
+/* —— Hero ambient (brand blue + warm accent) —— */
+@keyframes app-hero-aurora {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: translate3d(2%, -1.5%, 0) scale(1.04);
+  }
+}
+
+.app-hero-aurora {
+  pointer-events: none;
+  position: absolute;
+  inset: -20% -10% -10% -10%;
+  background:
+    radial-gradient(ellipse 75% 55% at 18% 22%, rgba(42, 56, 255, 0.16), transparent 52%),
+    radial-gradient(ellipse 65% 45% at 88% 28%, rgba(226, 119, 47, 0.09), transparent 48%),
+    radial-gradient(ellipse 55% 40% at 52% 92%, rgba(42, 56, 255, 0.08), transparent 50%);
+  animation: app-hero-aurora 16s ease-in-out infinite;
+}
+
+/* —— Dark sections: soft brand wash behind content —— */
+@keyframes app-mesh-drift {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.52;
+    transform: scale(1.03) translate3d(1%, -1%, 0);
+  }
+}
+
+.app-accent-bg-dark {
+  position: relative;
+  overflow: hidden;
+}
+
+.app-accent-bg-dark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 14% 18%, rgba(42, 56, 255, 0.22), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 88% 78%, rgba(194, 65, 12, 0.14), transparent 52%);
+  animation: app-mesh-drift 20s ease-in-out infinite;
+}
+
+.app-accent-bg-dark > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* —— Feature / pricing cards —— */
+.app-hover-lift {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease;
+}
+
+.app-hover-lift:hover {
+  transform: translate3d(0, -4px, 0);
+  box-shadow: 0 16px 40px rgba(7, 24, 79, 0.12);
+}
+
+/* —— Journey connector (md+) —— */
+.app-journey-line {
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    rgba(42, 56, 255, 0.35),
+    rgba(42, 56, 255, 0.65),
+    rgba(194, 65, 12, 0.45),
+    rgba(42, 56, 255, 0.65),
+    rgba(42, 56, 255, 0.35)
+  );
+  background-size: 200% 100%;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.25s;
+  animation: app-journey-flow 12s linear infinite;
+}
+
+.app-reveal--visible .app-journey-line {
+  transform: scaleX(1);
+}
+
+@keyframes app-journey-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+/* —— Premium booking mock —— */
+@keyframes app-mock-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+.app-mock-float {
+  animation: app-mock-float 6s ease-in-out infinite;
+}
+
+/* —— Hero calendar mock —— */
+@keyframes app-mock-tilt {
+  0%,
+  100% {
+    transform: perspective(900px) rotateX(2deg) rotateY(-2deg) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: perspective(900px) rotateX(1deg) rotateY(1deg) translate3d(0, -4px, 0);
+  }
+}
+
+.app-mock-hero {
+  animation: app-mock-tilt 8s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+/* —— Tagline on dark —— */
+@keyframes app-tagline-shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.app-tagline-shimmer {
+  background-image: linear-gradient(
+    105deg,
+    #ffffff 0%,
+    #e8eaff 28%,
+    #ffffff 48%,
+    #ffe9d8 62%,
+    #ffffff 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: app-tagline-shimmer 12s ease-in-out infinite;
+}
+
+/* —— Vision quote card edge glow —— */
+@keyframes app-border-glow {
+  0%,
+  100% {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    border-color: rgba(42, 56, 255, 0.28);
+    box-shadow:
+      0 24px 64px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(42, 56, 255, 0.12);
+  }
+}
+
+.app-vision-card {
+  animation: app-border-glow 8s ease-in-out infinite;
+}
+
+/* —— Light sections soft grid —— */
+.app-section-grid-light {
+  background-image:
+    linear-gradient(rgba(42, 56, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 56, 255, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+
+  .app-reveal--visible {
+    filter: none;
+  }
+
+  .app-hero-aurora,
+  .app-accent-bg-dark::before,
+  .app-journey-line,
+  .app-mock-float,
+  .app-mock-hero,
+  .app-tagline-shimmer,
+  .app-vision-card {
+    animation: none !important;
+  }
+
+  .app-journey-line {
+    transform: scaleX(1);
+  }
+
+  .app-hover-lift:hover {
+    transform: none;
+  }
+}
