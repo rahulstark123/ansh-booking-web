@@ -1,8 +1,23 @@
 @import "tailwindcss";
+@import "react-phone-input-2/lib/style.css";
 
 :root {
   --background: #f7f9ff;
   --foreground: #0c1733;
+
+  /* App accent (dashboard + auth); overridden by AppThemeProvider — Ocean default */
+  --app-primary: #0d9488;
+  --app-primary-hover: #0f7669;
+  --app-primary-foreground: #ffffff;
+  --app-primary-soft: #f0fdfa;
+  --app-primary-soft-text: #134e4a;
+  --app-primary-soft-border: #ccfbf1;
+  --app-primary-muted-icon: #0d9488;
+  --app-focus-border: #2dd4bf;
+  --app-ring: rgba(13, 148, 136, 0.22);
+  --app-row-hover: rgba(13, 148, 136, 0.07);
+  --app-gradient-from: #14b8a6;
+  --app-gradient-to: #0f7669;
 }
 
 @theme inline {

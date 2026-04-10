@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type NavKey = "features" | "pricing" | "who";
@@ -106,12 +107,12 @@ export function SiteHeader() {
           </a>
         </nav>
         <div className="hidden shrink-0 items-center gap-2 sm:gap-3 md:flex">
-          <a
+          <Link
+            href="/login"
             className="rounded-full px-3 py-1.5 text-sm font-semibold text-[#243051] transition-colors hover:bg-black/5 sm:px-4"
-            href="/"
           >
             Login
-          </a>
+          </Link>
           <button
             type="button"
             className="rounded-full bg-[#2a38ff] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(42,56,255,0.35)] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] sm:px-5"
