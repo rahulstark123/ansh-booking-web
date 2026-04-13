@@ -50,7 +50,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const { data: listener } = client.auth.onAuthStateChange(async (_event, session) => {
+      const { data: listener } = client.auth.onAuthStateChange(async (event, session) => {
         const sessionUser = session?.user;
         if (!sessionUser) {
           clearUser();
@@ -58,7 +58,15 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        setLoading(true);
+        // INITIAL_SESSION duplicates bootstrap; TOKEN_REFRESHED often fires when returning to the tab.
+        // Do not flip global `loading` — that triggers DashboardGate’s full-screen spinner.
+        const quiet =
+          event === "INITIAL_SESSION" ||
+          event === "TOKEN_REFRESHED";
+
+        if (!quiet) {
+          setLoading(true);
+        }
         try {
           const name = sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0] || "User";
           const result = await upsertUserProfile({
@@ -70,7 +78,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         } catch {
           setUser(authUserFromSession(sessionUser));
         } finally {
-          setLoading(false);
+          if (!quiet) {
+            setLoading(false);
+          }
         }
       });
 
