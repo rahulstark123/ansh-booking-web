@@ -2,26 +2,9 @@
 
 import { useEffect, type ReactNode } from "react";
 
+import { upsertUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
-
-type ProfilePayload = {
-  id: string;
-  email: string;
-  fullName: string;
-};
-
-async function upsertProfile(payload: ProfilePayload) {
-  const res = await fetch("/api/auth/profile", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error("Failed to sync user profile");
-  return (await res.json()) as {
-    user: { id: string; email: string; name: string; plan: "FREE" | "PRO"; role: "Free host" | "Pro host" };
-  };
-}
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
@@ -53,7 +36,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       } else {
         try {
           const name = sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0] || "User";
-          const result = await upsertProfile({
+          const result = await upsertUserProfile({
             id: sessionUser.id,
             email: sessionUser.email ?? "",
             fullName: name,
@@ -77,7 +60,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         setLoading(true);
         try {
           const name = sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0] || "User";
-          const result = await upsertProfile({
+          const result = await upsertUserProfile({
             id: sessionUser.id,
             email: sessionUser.email ?? "",
             fullName: name,

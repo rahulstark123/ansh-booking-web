@@ -36,3 +36,10 @@ Encode special characters (`@` → `%40`, etc.) in `DATABASE_URL` / `DIRECT_URL`
 ## Align environments
 
 Use the **same Supabase project** in local `.env`, Vercel, and CI so “column missing in prod” means the prod DB never received that migration — fix by aligning URLs and applying migrations or SQL once.
+
+## Signup and `user_profiles`
+
+If **email confirmation** is enabled in Supabase, `signUp()` often returns **no session** until the user clicks the link — the app cannot call `/api/auth/profile` as an authenticated follow-up until they sign in.
+
+- **App behavior:** After signup with a session, we upsert the profile immediately; if there is no session, we send the user to `/login` with an info toast.
+- **Database (recommended):** Run `scripts/supabase-auth-user-profile-trigger.sql` once in the Supabase SQL editor so a `user_profiles` row is created on every `auth.users` insert, even before the first session exists.

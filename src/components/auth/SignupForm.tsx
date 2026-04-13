@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
+import { upsertUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -46,7 +47,7 @@ export function SignupForm() {
         });
         return;
       }
-      const { error } = await client.auth.signUp({
+      const { data, error } = await client.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -59,8 +60,43 @@ export function SignupForm() {
         showToast({ kind: "error", title: "Signup failed", message: error.message });
         return;
       }
-      showToast({ kind: "success", title: "Account created", message: "Your workspace is ready." });
-      router.push("/dashboard");
+
+      const signedUpUser = data.user;
+      const session = data.session;
+
+      // Email confirmation ON → no session until user clicks link; DB trigger can still add profile.
+      if (session && signedUpUser?.id) {
+        try {
+          const result = await upsertUserProfile({
+            id: signedUpUser.id,
+            email: signedUpUser.email ?? email.trim(),
+            fullName: name.trim(),
+          });
+          useAuthStore.getState().setUser(result.user);
+          showToast({ kind: "success", title: "Account created", message: "Your workspace is ready." });
+          router.push("/dashboard");
+        } catch {
+          showToast({
+            kind: "error",
+            title: "Could not save profile",
+            message: "Account was created. Try signing in, or run the SQL trigger in Supabase (see scripts/).",
+          });
+          router.push("/login");
+        }
+        return;
+      }
+
+      if (signedUpUser?.id) {
+        showToast({
+          kind: "info",
+          title: "Confirm your email",
+          message: "We sent you a link. After you confirm, sign in — your profile will sync then (or use the auth trigger in scripts/).",
+        });
+        router.push("/login");
+        return;
+      }
+
+      showToast({ kind: "error", title: "Signup incomplete", message: "No user was returned. Try again." });
     } finally {
       setBusy(false);
     }
