@@ -3,18 +3,13 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 
+/** Only true “schema missing” — do not mask connection/SSL failures as a fake profile. */
 function isRecoverableDbError(error: unknown): boolean {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    // P2021: table does not exist, P1001: can't reach DB, P1017: server closed connection
-    return ["P2021", "P1001", "P1017"].includes(error.code);
+    return error.code === "P2021";
   }
   const msg = String(error);
-  return (
-    msg.includes("does not exist") ||
-    msg.includes("42P01") ||
-    msg.includes("ECONNREFUSED") ||
-    msg.includes("ETIMEDOUT")
-  );
+  return msg.includes("does not exist") || msg.includes("42P01");
 }
 
 function fallbackUser(body: { id: string; email: string; fullName?: string }) {
@@ -43,7 +38,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!prisma) {
-    return NextResponse.json(fallbackUser(body as { id: string; email: string; fullName?: string }));
+    return NextResponse.json(
+      { error: "DATABASE_URL is not set on the server", code: "missing_database_url" },
+      { status: 503 },
+    );
   }
 
   try {
