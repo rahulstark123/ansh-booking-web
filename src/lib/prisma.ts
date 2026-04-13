@@ -10,7 +10,12 @@ function buildPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) return null;
 
-  const pool = new Pool({ connectionString });
+  const pool = new Pool({
+    connectionString,
+    // Supabase Postgres requires TLS outside local dev
+    ssl: connectionString.includes("supabase.co") ? { rejectUnauthorized: false } : undefined,
+    max: 1,
+  });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
