@@ -8,6 +8,7 @@ datasource db {
 
 model UserProfile {
   id                String             @id @db.Uuid
+  wid               Int                @unique
   email             String             @unique
   fullName          String
   plan              Plan               @default(FREE)
@@ -35,6 +36,7 @@ enum BookingEventKind {
 model BookingEventType {
   id                 String             @id @default(uuid()) @db.Uuid
   hostId             String             @db.Uuid
+  wid                Int
   host               UserProfile        @relation(fields: [hostId], references: [id], onDelete: Cascade)
   kind               BookingEventKind
   eventName          String
@@ -58,6 +60,7 @@ model BookingEventType {
   scheduledMeetings  ScheduledMeeting[]
 
   @@index([hostId])
+  @@index([wid, hostId])
   @@map("booking_event_types")
 }
 
@@ -71,6 +74,7 @@ enum ScheduledMeetingStatus {
 model ScheduledMeeting {
   id             String                 @id @default(uuid()) @db.Uuid
   hostId         String                 @db.Uuid
+  wid            Int
   host           UserProfile            @relation(fields: [hostId], references: [id], onDelete: Cascade)
   eventTypeId    String?                @db.Uuid
   eventType      BookingEventType?      @relation(fields: [eventTypeId], references: [id], onDelete: SetNull)
@@ -85,7 +89,8 @@ model ScheduledMeeting {
   updatedAt      DateTime               @updatedAt
 
   @@index([hostId])
-  @@index([hostId, startsAt])
+  @@index([wid, hostId])
+  @@index([wid, hostId, startsAt])
   @@map("scheduled_meetings")
 }
 

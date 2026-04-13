@@ -11,10 +11,15 @@ import {
   UserGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { useToast } from "@/components/ui/ToastProvider";
 import { useScheduledMeetings } from "@/hooks/use-scheduled-meetings";
+import { createBookingEventType } from "@/lib/booking-event-types-api";
+import { queryKeys } from "@/lib/query-keys";
 import { SCHEDULING_EVENT_TYPES, type SchedulingEventTypeId } from "@/lib/scheduling-event-types";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 import { useDashboardUiStore } from "@/stores/dashboard-ui-store";
 
@@ -36,6 +41,8 @@ const DEFAULT_WORKING_HOURS: DaySchedule[] = [
 ];
 
 export default function SchedulingPage() {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const user = useAuthStore((s) => s.user);
   const { data: meetings = [], isLoading: meetingsLoading, isError: meetingsError } =
     useScheduledMeetings(user?.id);
@@ -59,6 +66,7 @@ export default function SchedulingPage() {
   const [customHours, setCustomHours] = useState<DaySchedule[]>(
     DEFAULT_WORKING_HOURS.map((d) => ({ ...d })),
   );
+  const [savingEvent, setSavingEvent] = useState(false);
 
   function chooseType(id: SchedulingEventTypeId) {
     setSelected(id);
@@ -76,6 +84,66 @@ export default function SchedulingPage() {
     if (id === "one-on-one") return <UserIcon className="h-4 w-4" aria-hidden />;
     if (id === "group") return <UserGroupIcon className="h-4 w-4" aria-hidden />;
     return <ArrowPathIcon className="h-4 w-4" aria-hidden />;
+  }
+
+  async function handleSaveEvent() {
+    if (!selectedType) return;
+    if (!form.eventName.trim()) {
+      showToast({ kind: "error", title: "Event name required", message: "Please enter an event name." });
+      return;
+    }
+    const durationMinutes = Number(form.duration);
+    const bufferBeforeMinutes = Number(form.bufferBefore);
+    const bufferAfterMinutes = Number(form.bufferAfter);
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      showToast({ kind: "error", title: "Invalid duration", message: "Duration must be greater than 0." });
+      return;
+    }
+
+    setSavingEvent(true);
+    try {
+      const client = await getSupabaseBrowserClient();
+      if (!client) {
+        showToast({ kind: "error", title: "Configuration error", message: "Supabase is not configured." });
+        return;
+      }
+      const { data, error } = await client.auth.getSession();
+      if (error || !data.session?.access_token || !data.session.user?.id) {
+        showToast({ kind: "error", title: "Not signed in", message: "Please sign in again and retry." });
+        return;
+      }
+
+      const sourceHours = form.availability === "custom" ? customHours : DEFAULT_WORKING_HOURS;
+      await createBookingEventType(data.session.access_token, {
+        kind: selectedType.id,
+        eventName: form.eventName.trim(),
+        durationMinutes,
+        location: form.location,
+        description: form.description.trim() || undefined,
+        availabilityPreset: form.availability,
+        minNotice: form.minNotice,
+        bufferBeforeMinutes,
+        bufferAfterMinutes,
+        bookingWindow: form.bookingWindow,
+        bookingQuestion: form.bookingQuestion.trim() || undefined,
+        weekSlots: sourceHours.map((h) => ({
+          dayKey: h.day,
+          enabled: h.enabled,
+          startTime: h.start,
+          endTime: h.end,
+        })),
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.meetings.list(data.session.user.id),
+      });
+      showToast({ kind: "success", title: "Event saved", message: "Your booking event type is ready." });
+      setSetupOpen(false);
+    } catch {
+      showToast({ kind: "error", title: "Save failed", message: "Could not save event type. Try again." });
+    } finally {
+      setSavingEvent(false);
+    }
   }
 
   useEffect(() => {
@@ -421,9 +489,11 @@ export default function SchedulingPage() {
               </button>
               <button
                 type="button"
+                disabled={savingEvent}
+                onClick={handleSaveEvent}
                 className="rounded-full bg-[var(--app-primary)] px-4 py-2 text-sm font-medium text-[var(--app-primary-foreground)] transition hover:bg-[var(--app-primary-hover)]"
               >
-                Save event
+                {savingEvent ? "Saving..." : "Save event"}
               </button>
             </div>
           </aside>

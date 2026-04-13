@@ -43,6 +43,29 @@ function bearerToken(req: NextRequest): string | null {
   return t || null;
 }
 
+function workspaceIdFromMeta(meta: unknown): number | null {
+  if (meta && typeof meta === "object") {
+    const m = meta as Record<string, unknown>;
+    const parse = (v: unknown): number | null => {
+      if (typeof v === "number" && Number.isInteger(v) && v > 0) return v;
+      if (typeof v === "string" && /^\d+$/.test(v.trim())) return Number(v.trim());
+      return null;
+    };
+    const direct = parse(m.workspace_id);
+    if (direct) return direct;
+    const alt = parse(m.wid);
+    if (alt) return alt;
+  }
+  return null;
+}
+
+async function nextWorkspaceId(
+  prisma: NonNullable<ReturnType<typeof getPrisma>>,
+): Promise<number> {
+  const agg = await prisma.userProfile.aggregate({ _max: { wid: true } });
+  return (agg._max.wid ?? 0) + 1;
+}
+
 /**
  * GET — load or create the profile for the signed-in user.
  * Auth: `Authorization: Bearer <supabase access_token>` (from `session.access_token`).
@@ -74,6 +97,7 @@ export async function GET(req: NextRequest) {
   const meta = authUser.user_metadata;
   const fromMeta = meta && typeof meta.full_name === "string" ? meta.full_name.trim() : "";
   const fullName = fromMeta || authUser.email.split("@")[0] || "User";
+  const requestedWid = workspaceIdFromMeta(meta);
 
   const prisma = getPrisma();
   if (!prisma) {
@@ -88,18 +112,31 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const profile = await prisma.userProfile.upsert({
-      where: { id: authUser.id },
-      update: {
-        email: authUser.email,
-        fullName,
-      },
-      create: {
-        id: authUser.id,
-        email: authUser.email,
-        fullName,
-      },
-    });
+    const existing = await prisma.userProfile.findUnique({ where: { id: authUser.id } });
+    let profile;
+    if (existing) {
+      profile = await prisma.userProfile.update({
+        where: { id: authUser.id },
+        data: {
+          email: authUser.email,
+          fullName,
+        },
+      });
+    } else {
+      let wid = requestedWid ?? (await nextWorkspaceId(prisma));
+      if (requestedWid) {
+        const used = await prisma.userProfile.findFirst({ where: { wid: requestedWid } });
+        if (used) wid = await nextWorkspaceId(prisma);
+      }
+      profile = await prisma.userProfile.create({
+        data: {
+          id: authUser.id,
+          email: authUser.email,
+          fullName,
+          wid,
+        },
+      });
+    }
 
     return NextResponse.json({
       user: {
