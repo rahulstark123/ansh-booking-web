@@ -13,4 +13,8 @@ export const queryKeys = {
     root: ["meetings"] as const,
     list: (hostId: string) => [...queryKeys.meetings.root, "list", hostId] as const,
   },
+  availability: {
+    root: ["availability"] as const,
+    weekly: (hostId: string) => [...queryKeys.availability.root, "weekly", hostId] as const,
+  },
 } as const;
