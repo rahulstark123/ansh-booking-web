@@ -9,19 +9,49 @@ const globalForPrisma = globalThis as unknown as {
 /**
  * Supabase transaction pooler (6543) + `pgbouncer=true` is tuned for Prisma’s classic query engine.
  * `@prisma/adapter-pg` talks to `node-pg` directly and often fails against transaction mode;
- * session pooler / direct Postgres (same host, port 5432) is what `DIRECT_URL` uses — use it at
- * runtime when both URLs are set.
+ * use session mode on the **same pooler host** (5432, no `pgbouncer=true`).
+ *
+ * `db.<ref>.supabase.co` (many “direct” strings) is often unreachable from Vercel (IPv4 vs IPv6);
+ * prefer pooler session URLs from the dashboard or derive them from the6543 string.
  */
+function deriveSupabasePoolerSessionUrl(transactionUrl: string): string | null {
+  if (!/pooler\.supabase\.(com|io)/i.test(transactionUrl)) return null;
+  if (!/:(6543)(\/|\?|$)/.test(transactionUrl)) return null;
+  let s = transactionUrl.replace(/:6543(\/|\?|$)/, ":5432$1");
+  s = s.replace(/([?&])pgbouncer=true&?/gi, "$1");
+  s = s.replace(/\?&/g, "?").replace(/[?&]$/, "").replace(/\?$/, "");
+  return s;
+}
+
+/** Hostnames that commonly produce P1001 from IPv4-only serverless (e.g. Vercel). */
+function isSupabaseIpv6StyleDirectUrl(url: string): boolean {
+  return /@db\.[^/?]+\.supabase\.co/i.test(url);
+}
+
 function resolveRuntimeDatabaseUrl(): string | undefined {
   const override = process.env.PRISMA_RUNTIME_DATABASE_URL?.trim();
   if (override) return override;
 
   const pooled = process.env.DATABASE_URL?.trim();
   const direct = process.env.DIRECT_URL?.trim();
-  if (pooled && direct) {
-    const m = pooled.match(/:(\d+)(?:\/|\?|$)/);
-    if (m && m[1] === "6543") return direct;
+  const derivedSession = pooled ? deriveSupabasePoolerSessionUrl(pooled) : null;
+
+  const pooledPort = pooled?.match(/:(\d+)(?:\/|\?|$)/)?.[1];
+
+  if (pooled && pooledPort === "6543") {
+    if (direct) {
+      if (isSupabaseIpv6StyleDirectUrl(direct)) {
+        return derivedSession ?? direct;
+      }
+      return direct;
+    }
+    return derivedSession ?? pooled;
   }
+
+  if (pooled && isSupabaseIpv6StyleDirectUrl(pooled) && derivedSession) {
+    return derivedSession;
+  }
+
   return pooled || direct;
 }
 
@@ -53,6 +83,7 @@ function buildPrismaClient(): PrismaClient | null {
     connectionString,
     ssl: isSupabaseConnection(raw) ? { rejectUnauthorized: false } : undefined,
     max: 1,
+    connectionTimeoutMillis: 15_000,
   });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });

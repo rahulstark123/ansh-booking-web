@@ -74,10 +74,18 @@ export async function POST(req: NextRequest) {
     }
     const prismaCode =
       error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined;
+    const p1001Hint =
+      prismaCode === "P1001"
+        ? {
+            hint:
+              "Cannot reach Postgres from this host. On Vercel, use Supabase Session pooler (*.pooler.supabase.com, port 5432), not db.*.supabase.co. If DATABASE_URL is the 6543 pooler string, redeploy — the app derives the 5432 session URL automatically.",
+          }
+        : {};
     return NextResponse.json(
       {
         error: "Failed to sync profile",
         ...(prismaCode ? { prismaCode } : {}),
+        ...p1001Hint,
       },
       { status: 500 },
     );
