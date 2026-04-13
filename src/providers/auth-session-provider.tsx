@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 
 import { authUserFromSession } from "@/lib/auth/session-user";
-import { upsertUserProfile } from "@/lib/auth/upsert-user-profile";
+import { syncUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -28,30 +28,31 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       }
 
       const { data } = await client.auth.getSession();
-      const sessionUser = data.session?.user;
+      const session = data.session;
+      const sessionUser = session?.user;
+      const accessToken = session?.access_token;
       if (!sessionUser) {
         if (active) {
           clearUser();
           setLoading(false);
         }
-      } else {
+      } else if (accessToken) {
         try {
-          const name = sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0] || "User";
-          const result = await upsertUserProfile({
-            id: sessionUser.id,
-            email: sessionUser.email ?? "",
-            fullName: name,
-          });
+          const result = await syncUserProfile(accessToken);
           if (active) setUser(result.user);
         } catch {
           if (active) setUser(authUserFromSession(sessionUser));
         } finally {
           if (active) setLoading(false);
         }
+      } else {
+        if (active) setUser(authUserFromSession(sessionUser));
+        if (active) setLoading(false);
       }
 
       const { data: listener } = client.auth.onAuthStateChange(async (event, session) => {
         const sessionUser = session?.user;
+        const accessToken = session?.access_token;
         if (!sessionUser) {
           clearUser();
           setLoading(false);
@@ -68,13 +69,12 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           setLoading(true);
         }
         try {
-          const name = sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0] || "User";
-          const result = await upsertUserProfile({
-            id: sessionUser.id,
-            email: sessionUser.email ?? "",
-            fullName: name,
-          });
-          setUser(result.user);
+          if (accessToken) {
+            const result = await syncUserProfile(accessToken);
+            setUser(result.user);
+          } else {
+            setUser(authUserFromSession(sessionUser));
+          }
         } catch {
           setUser(authUserFromSession(sessionUser));
         } finally {

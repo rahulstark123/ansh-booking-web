@@ -1,7 +1,18 @@
 import { Prisma } from "@prisma/client";
+import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
-import { getPrismaConfigurationError, prisma } from "@/lib/prisma";
+import { getPrisma, getPrismaConfigurationError } from "@/lib/prisma";
+
+function supabaseUrlAndAnonKey(): { url: string; anonKey: string } | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.SUPABASE_ANON_KEY;
+  if (!url?.trim() || !anonKey?.trim()) return null;
+  return { url: url.trim(), anonKey: anonKey.trim() };
+}
 
 /** Only true “schema missing” — do not mask connection/SSL failures as a fake profile. */
 function isRecoverableDbError(error: unknown): boolean {
@@ -25,24 +36,52 @@ function fallbackUser(body: { id: string; email: string; fullName?: string }) {
   };
 }
 
-export async function POST(req: NextRequest) {
-  let body: { id?: string; email?: string; fullName?: string };
-  try {
-    body = (await req.json()) as { id?: string; email?: string; fullName?: string };
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+function bearerToken(req: NextRequest): string | null {
+  const h = req.headers.get("authorization");
+  if (!h?.startsWith("Bearer ")) return null;
+  const t = h.slice(7).trim();
+  return t || null;
+}
+
+/**
+ * GET — load or create the profile for the signed-in user.
+ * Auth: `Authorization: Bearer <supabase access_token>` (from `session.access_token`).
+ */
+export async function GET(req: NextRequest) {
+  const token = bearerToken(req);
+  if (!token) {
+    return NextResponse.json(
+      { error: "Missing or invalid Authorization header (expected Bearer token)." },
+      { status: 401 },
+    );
   }
 
-  if (!body.id || !body.email) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  const cfg = supabaseUrlAndAnonKey();
+  if (!cfg) {
+    return NextResponse.json({ error: "Supabase is not configured on the server." }, { status: 503 });
   }
 
+  const supabase = createClient(cfg.url, cfg.anonKey);
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+
+  if (authError || !authUser?.id || !authUser.email) {
+    return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
+  }
+
+  const meta = authUser.user_metadata;
+  const fromMeta = meta && typeof meta.full_name === "string" ? meta.full_name.trim() : "";
+  const fullName = fromMeta || authUser.email.split("@")[0] || "User";
+
+  const prisma = getPrisma();
   if (!prisma) {
-    const cfg = getPrismaConfigurationError();
+    const err = getPrismaConfigurationError();
     return NextResponse.json(
       {
-        error: cfg?.message ?? "Database client is not available",
-        code: cfg?.code ?? "missing_database_url",
+        error: err?.message ?? "Database client is not available",
+        code: err?.code ?? "missing_database_url",
       },
       { status: 503 },
     );
@@ -50,15 +89,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const profile = await prisma.userProfile.upsert({
-      where: { id: body.id },
+      where: { id: authUser.id },
       update: {
-        email: body.email,
-        fullName: body.fullName?.trim() || body.email.split("@")[0] || "User",
+        email: authUser.email,
+        fullName,
       },
       create: {
-        id: body.id,
-        email: body.email,
-        fullName: body.fullName?.trim() || body.email.split("@")[0] || "User",
+        id: authUser.id,
+        email: authUser.email,
+        fullName,
       },
     });
 
@@ -74,7 +113,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[api/auth/profile]", error);
     if (isRecoverableDbError(error)) {
-      return NextResponse.json(fallbackUser(body as { id: string; email: string; fullName?: string }));
+      return NextResponse.json(
+        fallbackUser({ id: authUser.id, email: authUser.email, fullName }),
+      );
     }
     const prismaCode =
       error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined;
@@ -82,7 +123,7 @@ export async function POST(req: NextRequest) {
       prismaCode === "P1001"
         ? {
             hint:
-              "Cannot reach Postgres from this host. On Vercel, use Supabase Session pooler (*.pooler.supabase.com, port 5432), not db.*.supabase.co. If DATABASE_URL is the 6543 pooler string, redeploy — the app derives the 5432 session URL automatically.",
+              "Cannot reach Postgres from this host. Use Supabase Session pooler (*.pooler.supabase.com, port 5432), not db.*.supabase.co.",
           }
         : {};
     return NextResponse.json(

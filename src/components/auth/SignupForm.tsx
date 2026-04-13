@@ -6,7 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
 import { authUserFromSession } from "@/lib/auth/session-user";
-import { upsertUserProfile } from "@/lib/auth/upsert-user-profile";
+import { syncUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -65,26 +65,17 @@ export function SignupForm() {
       const signedUpUser = data.user;
       const session = data.session;
 
-      // Try to sync profile whenever Auth returns a user id (with or without a session).
       if (signedUpUser?.id) {
         let syncedProfile = false;
-        try {
-          const result = await upsertUserProfile({
-            id: signedUpUser.id,
-            email: signedUpUser.email ?? email.trim(),
-            fullName: name.trim(),
-          });
-          syncedProfile = true;
-          if (session) {
+        const accessToken = session?.access_token;
+        if (session && accessToken) {
+          try {
+            const result = await syncUserProfile(accessToken);
+            syncedProfile = true;
             useAuthStore.getState().setUser(result.user);
-          }
-        } catch {
-          if (session) {
+          } catch {
             useAuthStore.getState().setUser(authUserFromSession(signedUpUser, name.trim()));
           }
-        }
-
-        if (session) {
           showToast(
             syncedProfile
               ? { kind: "success", title: "Account created", message: "Your workspace is ready." }
@@ -98,20 +89,12 @@ export function SignupForm() {
           return;
         }
 
-        showToast(
-          syncedProfile
-            ? {
-                kind: "info",
-                title: "Confirm your email",
-                message: "We sent you a link. Your profile is already prepared — sign in after confirming.",
-              }
-            : {
-                kind: "info",
-                title: "Confirm your email",
-                message:
-                  "We sent you a link. After you confirm, sign in — your profile will sync then (or use the auth trigger in scripts/).",
-              },
-        );
+        showToast({
+          kind: "info",
+          title: "Confirm your email",
+          message:
+            "We sent you a link. After you confirm and sign in, your profile will sync (or use the auth trigger in scripts/).",
+        });
         router.push("/login");
         return;
       }

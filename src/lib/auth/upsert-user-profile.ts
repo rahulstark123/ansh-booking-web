@@ -1,9 +1,3 @@
-export type ProfilePayload = {
-  id: string;
-  email: string;
-  fullName: string;
-};
-
 export type ProfileUser = {
   id: string;
   email: string;
@@ -12,11 +6,15 @@ export type ProfileUser = {
   role: "Free host" | "Pro host";
 };
 
-export async function upsertUserProfile(payload: ProfilePayload): Promise<{ user: ProfileUser }> {
+/**
+ * Loads or creates the DB profile for the current Supabase session (GET /api/auth/profile).
+ * Pass `session.access_token` from the browser client.
+ */
+export async function syncUserProfile(accessToken: string): Promise<{ user: ProfileUser }> {
   const res = await fetch("/api/auth/profile", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to sync user profile");
   return (await res.json()) as { user: ProfileUser };

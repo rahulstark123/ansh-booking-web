@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 
 const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient | null;
+  prisma?: PrismaClient;
 };
 
 /**
@@ -110,8 +110,20 @@ function buildPrismaClient(): PrismaClient | null {
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prisma ?? buildPrismaClient();
-if (prisma) globalForPrisma.prisma = prisma;
+/**
+ * Lazy init so Next dev loads `.env.local` before the first DB call (avoids stale P1001 from early init).
+ * Only successful clients are cached; `null` is not cached so env fixes apply without restarting.
+ */
+export function getPrisma(): PrismaClient | null {
+  if (globalForPrisma.prisma != null) {
+    return globalForPrisma.prisma;
+  }
+  const client = buildPrismaClient();
+  if (client) {
+    globalForPrisma.prisma = client;
+  }
+  return client;
+}
 
 const ENV_KEYS = [
   "DATABASE_URL",
@@ -124,7 +136,7 @@ const ENV_KEYS = [
 export function getPrismaConfigurationError():
   | { code: string; message: string }
   | null {
-  if (prisma) return null;
+  if (getPrisma()) return null;
 
   const hasAnyEnv = ENV_KEYS.some((k) => Boolean(process.env[k]?.trim()));
   const candidate = resolveRuntimeDatabaseUrl();

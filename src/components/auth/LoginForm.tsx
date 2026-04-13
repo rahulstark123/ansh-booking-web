@@ -6,7 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
 import { authUserFromSession } from "@/lib/auth/session-user";
-import { upsertUserProfile } from "@/lib/auth/upsert-user-profile";
+import { syncUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -52,15 +52,10 @@ export function LoginForm() {
         return;
       }
       const sessionUser = data.session?.user ?? data.user;
-      if (sessionUser?.id) {
+      const accessToken = data.session?.access_token;
+      if (sessionUser?.id && accessToken) {
         try {
-          const name =
-            sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0] || "User";
-          const result = await upsertUserProfile({
-            id: sessionUser.id,
-            email: sessionUser.email ?? email.trim(),
-            fullName: name,
-          });
+          const result = await syncUserProfile(accessToken);
           useAuthStore.getState().setUser(result.user);
         } catch {
           useAuthStore.getState().setUser(authUserFromSession(sessionUser));
@@ -72,6 +67,8 @@ export function LoginForm() {
           router.push("/dashboard");
           return;
         }
+      } else if (sessionUser?.id && !accessToken) {
+        useAuthStore.getState().setUser(authUserFromSession(sessionUser));
       }
       showToast({ kind: "success", title: "Signed in", message: "Welcome back to your workspace." });
       router.push("/dashboard");
