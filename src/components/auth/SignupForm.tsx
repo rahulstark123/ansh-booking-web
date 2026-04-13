@@ -65,35 +65,53 @@ export function SignupForm() {
       const signedUpUser = data.user;
       const session = data.session;
 
-      // Email confirmation ON → no session until user clicks link; DB trigger can still add profile.
-      if (session && signedUpUser?.id) {
+      // Try to sync profile whenever Auth returns a user id (with or without a session).
+      if (signedUpUser?.id) {
+        let syncedProfile = false;
         try {
           const result = await upsertUserProfile({
             id: signedUpUser.id,
             email: signedUpUser.email ?? email.trim(),
             fullName: name.trim(),
           });
-          useAuthStore.getState().setUser(result.user);
-          showToast({ kind: "success", title: "Account created", message: "Your workspace is ready." });
-          router.push("/dashboard");
+          syncedProfile = true;
+          if (session) {
+            useAuthStore.getState().setUser(result.user);
+          }
         } catch {
-          useAuthStore.getState().setUser(authUserFromSession(signedUpUser, name.trim()));
-          showToast({
-            kind: "info",
-            title: "Account ready",
-            message: "You’re signed in. We’ll save your full profile when the database is available.",
-          });
-          router.push("/dashboard");
+          if (session) {
+            useAuthStore.getState().setUser(authUserFromSession(signedUpUser, name.trim()));
+          }
         }
-        return;
-      }
 
-      if (signedUpUser?.id) {
-        showToast({
-          kind: "info",
-          title: "Confirm your email",
-          message: "We sent you a link. After you confirm, sign in — your profile will sync then (or use the auth trigger in scripts/).",
-        });
+        if (session) {
+          showToast(
+            syncedProfile
+              ? { kind: "success", title: "Account created", message: "Your workspace is ready." }
+              : {
+                  kind: "info",
+                  title: "Account ready",
+                  message: "You’re signed in. We’ll save your full profile when the database is available.",
+                },
+          );
+          router.push("/dashboard");
+          return;
+        }
+
+        showToast(
+          syncedProfile
+            ? {
+                kind: "info",
+                title: "Confirm your email",
+                message: "We sent you a link. Your profile is already prepared — sign in after confirming.",
+              }
+            : {
+                kind: "info",
+                title: "Confirm your email",
+                message:
+                  "We sent you a link. After you confirm, sign in — your profile will sync then (or use the auth trigger in scripts/).",
+              },
+        );
         router.push("/login");
         return;
       }
