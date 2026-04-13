@@ -1,5 +1,9 @@
 -- Run in Supabase: SQL Editor → New query → Run
 -- Creates enum + user_profiles for Prisma (safe to re-run)
+--
+-- From a terminal (when your network can reach Supabase), prefer:
+--   DIRECT_URL=...direct postgres... npm run db:migrate
+-- See docs/prisma-supabase.md and prisma.config.ts (CLI uses DIRECT_URL || DATABASE_URL).
 
 DO $$
 BEGIN
