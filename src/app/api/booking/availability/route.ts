@@ -4,6 +4,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { WeeklyAvailabilityRow } from "@/lib/availability-api";
 import { getPrisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+export const preferredRegion = "sin1";
+
 const DAYS: Array<{ dayOfWeek: number; dayLabel: string; startTime: string; endTime: string; enabled: boolean }> = [
   { dayOfWeek: 1, dayLabel: "Monday", startTime: "09:00", endTime: "18:00", enabled: true },
   { dayOfWeek: 2, dayLabel: "Tuesday", startTime: "09:00", endTime: "18:00", enabled: true },
@@ -53,17 +56,21 @@ async function ensureProfileAndWid(
   prisma: NonNullable<ReturnType<typeof getPrisma>>,
   authUser: { id: string; email?: string | null; user_metadata?: unknown },
 ): Promise<number> {
-  const existing = await prisma.userProfile.findUnique({ where: { id: authUser.id } });
+  const existing = await prisma.userProfile.findUnique({
+    where: { id: authUser.id },
+    select: { wid: true, email: true, fullName: true },
+  });
   const name =
     (authUser.user_metadata as Record<string, unknown> | undefined)?.full_name as string | undefined;
+  const nextEmail = authUser.email ?? "";
+  const nextName = name?.trim() || authUser.email?.split("@")[0] || "User";
   if (existing) {
-    await prisma.userProfile.update({
-      where: { id: authUser.id },
-      data: {
-        email: authUser.email ?? "",
-        fullName: name?.trim() || authUser.email?.split("@")[0] || "User",
-      },
-    });
+    if (existing.email !== nextEmail || existing.fullName !== nextName) {
+      await prisma.userProfile.update({
+        where: { id: authUser.id },
+        data: { email: nextEmail, fullName: nextName },
+      });
+    }
     return existing.wid;
   }
 
@@ -76,8 +83,8 @@ async function ensureProfileAndWid(
   await prisma.userProfile.create({
     data: {
       id: authUser.id,
-      email: authUser.email ?? "",
-      fullName: name?.trim() || authUser.email?.split("@")[0] || "User",
+      email: nextEmail,
+      fullName: nextName,
       wid,
     },
   });

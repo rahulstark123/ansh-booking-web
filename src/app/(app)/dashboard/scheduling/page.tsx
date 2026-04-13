@@ -5,8 +5,13 @@ import {
   CalendarDaysIcon,
   ChevronDownIcon,
   ClockIcon,
+  EllipsisHorizontalIcon,
+  LinkIcon,
+  PencilSquareIcon,
   VideoCameraIcon,
   PlusIcon,
+  PowerIcon,
+  TrashIcon,
   UserIcon,
   UserGroupIcon,
   XMarkIcon,
@@ -50,7 +55,9 @@ export default function SchedulingPage() {
   const setSelected = useDashboardUiStore((s) => s.setLastEventTypeChoice);
   const [createOpen, setCreateOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [rowMenuOpenFor, setRowMenuOpenFor] = useState<string | null>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
+  const rowMenuRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
     eventName: "",
     duration: "30",
@@ -146,6 +153,37 @@ export default function SchedulingPage() {
     }
   }
 
+  function bookingLinkForMeeting(meetingId: string): string {
+    if (typeof window === "undefined") return "";
+    const base = window.location.origin;
+    const cleanId = meetingId.startsWith("evt-") ? meetingId.slice(4) : meetingId;
+    return `${base}/book/${user?.id ?? "host"}?event=${encodeURIComponent(cleanId)}`;
+  }
+
+  async function handleCopyMeetingLink(meetingId: string) {
+    const link = bookingLinkForMeeting(meetingId);
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast({ kind: "success", title: "Link copied", message: "Booking link copied to clipboard." });
+    } catch {
+      showToast({ kind: "error", title: "Copy failed", message: "Could not copy link. Please try again." });
+    }
+  }
+
+  function handleRowAction(action: "edit" | "delete" | "toggle", meetingTitle: string) {
+    const labels = {
+      edit: "Edit",
+      delete: "Delete",
+      toggle: "On/Off",
+    } as const;
+    showToast({
+      kind: "info",
+      title: `${labels[action]} coming soon`,
+      message: `${labels[action]} action for "${meetingTitle}" will be wired next.`,
+    });
+  }
+
   useEffect(() => {
     if (!createOpen) return;
     function onPointerDown(e: MouseEvent) {
@@ -157,6 +195,18 @@ export default function SchedulingPage() {
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [createOpen]);
+
+  useEffect(() => {
+    if (!rowMenuOpenFor) return;
+    function onPointerDown(e: MouseEvent) {
+      if (!rowMenuRef.current) return;
+      if (!rowMenuRef.current.contains(e.target as Node)) {
+        setRowMenuOpenFor(null);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [rowMenuOpenFor]);
 
   const selectedType = SCHEDULING_EVENT_TYPES.find((x) => x.id === selected) ?? null;
 
@@ -271,6 +321,63 @@ export default function SchedulingPage() {
                     >
                       {meeting.status}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyMeetingLink(meeting.id)}
+                      className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" />
+                      Copy link
+                    </button>
+                    <div ref={rowMenuOpenFor === meeting.id ? rowMenuRef : null} className="relative">
+                      <button
+                        type="button"
+                        aria-label={`More actions for ${meeting.title}`}
+                        onClick={() =>
+                          setRowMenuOpenFor((current) => (current === meeting.id ? null : meeting.id))
+                        }
+                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800"
+                      >
+                        <EllipsisHorizontalIcon className="h-5 w-5" />
+                      </button>
+                      {rowMenuOpenFor === meeting.id && (
+                        <div className="absolute top-[calc(100%+0.35rem)] right-0 z-30 min-w-[10rem] overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRowMenuOpenFor(null);
+                              handleRowAction("edit", meeting.title);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
+                          >
+                            <PencilSquareIcon className="h-4 w-4" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRowMenuOpenFor(null);
+                              handleRowAction("delete", meeting.title);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRowMenuOpenFor(null);
+                              handleRowAction("toggle", meeting.title);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
+                          >
+                            <PowerIcon className="h-4 w-4" />
+                            On / Off
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}

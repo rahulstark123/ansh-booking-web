@@ -4,6 +4,9 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { getPrisma, getPrismaConfigurationError } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+export const preferredRegion = "sin1";
+
 function supabaseUrlAndAnonKey(): { url: string; anonKey: string } | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const anonKey =
@@ -112,16 +115,20 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const existing = await prisma.userProfile.findUnique({ where: { id: authUser.id } });
+    const existing = await prisma.userProfile.findUnique({
+      where: { id: authUser.id },
+      select: { id: true, email: true, fullName: true, plan: true },
+    });
     let profile;
     if (existing) {
-      profile = await prisma.userProfile.update({
-        where: { id: authUser.id },
-        data: {
-          email: authUser.email,
-          fullName,
-        },
-      });
+      if (existing.email !== authUser.email || existing.fullName !== fullName) {
+        profile = await prisma.userProfile.update({
+          where: { id: authUser.id },
+          data: { email: authUser.email, fullName },
+        });
+      } else {
+        profile = existing;
+      }
     } else {
       let wid = requestedWid ?? (await nextWorkspaceId(prisma));
       if (requestedWid) {

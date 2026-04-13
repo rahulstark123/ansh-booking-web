@@ -5,6 +5,9 @@ import { schedulingTypeIdToBookingKind } from "@/lib/booking-kind";
 import type { CreateBookingEventTypeInput } from "@/lib/booking-event-types-api";
 import { getPrisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+export const preferredRegion = "sin1";
+
 function supabaseUrlAndAnonKey(): { url: string; anonKey: string } | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const anonKey =
@@ -161,19 +164,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const requestedWid = workspaceIdFromMeta(authUser.user_metadata);
-    const existing = await prisma.userProfile.findUnique({ where: { id: authUser.id } });
+    const existing = await prisma.userProfile.findUnique({
+      where: { id: authUser.id },
+      select: { wid: true, email: true, fullName: true },
+    });
+    const nextEmail = authUser.email ?? "";
+    const nextName =
+      (authUser.user_metadata?.full_name as string | undefined)?.trim() ||
+      authUser.email?.split("@")[0] ||
+      "User";
     let wid = existing?.wid ?? null;
     if (existing) {
-      await prisma.userProfile.update({
-        where: { id: authUser.id },
-        data: {
-          email: authUser.email ?? "",
-          fullName:
-            (authUser.user_metadata?.full_name as string | undefined)?.trim() ||
-            authUser.email?.split("@")[0] ||
-            "User",
-        },
-      });
+      if (existing.email !== nextEmail || existing.fullName !== nextName) {
+        await prisma.userProfile.update({
+          where: { id: authUser.id },
+          data: { email: nextEmail, fullName: nextName },
+        });
+      }
     } else {
       wid = requestedWid ?? (await nextWorkspaceId(prisma));
       if (requestedWid) {
@@ -183,12 +190,9 @@ export async function POST(req: NextRequest) {
       await prisma.userProfile.create({
         data: {
           id: authUser.id,
-          email: authUser.email ?? "",
+          email: nextEmail,
           wid,
-          fullName:
-            (authUser.user_metadata?.full_name as string | undefined)?.trim() ||
-            authUser.email?.split("@")[0] ||
-            "User",
+          fullName: nextName,
         },
       });
     }
