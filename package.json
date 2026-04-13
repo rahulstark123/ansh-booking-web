@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "db:migrate": "prisma migrate deploy"
+    "db:migrate": "prisma migrate deploy",
+    "db:create-tables": "node scripts/create-user-profiles.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
