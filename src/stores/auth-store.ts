@@ -1,29 +1,25 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 
 export type AuthUser = {
+  id: string;
   name: string;
   email: string;
-  role: string;
+  role: "Free host" | "Pro host";
+  plan: "FREE" | "PRO";
 };
 
 type AuthState = {
   user: AuthUser | null;
-  login: (user: AuthUser) => void;
-  logout: () => void;
+  loading: boolean;
+  setUser: (user: AuthUser | null) => void;
+  clearUser: () => void;
+  setLoading: (loading: boolean) => void;
 };
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      login: (user) => set({ user }),
-      logout: () => set({ user: null }),
-    }),
-    {
-      name: "ansh-bookings-auth",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ user: state.user }),
-    },
-  ),
-);
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  loading: true,
+  setUser: (user) => set({ user }),
+  clearUser: () => set({ user: null }),
+  setLoading: (loading) => set({ loading }),
+}));

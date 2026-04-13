@@ -7,16 +7,14 @@ import {
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function DashboardTopBar() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-  const planTag =
-    user && (user.role.toLowerCase().includes("pro") || user.role.toLowerCase().includes("premium"))
-      ? "PRO"
-      : "FREE";
+  const clearUser = useAuthStore((s) => s.clearUser);
+  const planTag = user?.plan ?? "FREE";
 
   return (
     <header className="sticky top-0 z-30 flex shrink-0 items-center gap-4 border-b border-zinc-200/80 bg-white/95 px-5 py-3 backdrop-blur">
@@ -75,8 +73,10 @@ export function DashboardTopBar() {
           </div>
           <button
             type="button"
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              const client = await getSupabaseBrowserClient();
+              if (client) await client.auth.signOut();
+              clearUser();
               router.push("/login");
             }}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-rose-600 transition hover:bg-rose-50 hover:text-rose-700"

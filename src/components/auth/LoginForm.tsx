@@ -5,27 +5,22 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function LoginForm() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const login = useAuthStore((s) => s.login);
   const { showToast } = useToast();
   const [email, setEmail] = useState("alex@example.com");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (useAuthStore.persist.hasHydrated() && useAuthStore.getState().user) {
-      router.replace("/dashboard");
-    }
-    return useAuthStore.persist.onFinishHydration(() => {
-      if (useAuthStore.getState().user) router.replace("/dashboard");
-    });
+    if (user) router.replace("/dashboard");
   }, [router, user]);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!email.trim()) {
       showToast({ kind: "error", title: "Email is required", message: "Please enter your email address." });
@@ -36,16 +31,29 @@ export function LoginForm() {
       return;
     }
     setBusy(true);
-    const cleanEmail = email.trim() || "user@example.com";
-    const derivedName = cleanEmail.split("@")[0]?.replace(/[._-]+/g, " ") || "User";
-    login({
-      name: derivedName,
-      email: cleanEmail,
-      role: "Premium host",
-    });
-    showToast({ kind: "success", title: "Signed in", message: "Welcome back to your workspace." });
-    router.push("/dashboard");
-    setBusy(false);
+    try {
+      const client = await getSupabaseBrowserClient();
+      if (!client) {
+        showToast({
+          kind: "error",
+          title: "Configuration error",
+          message: "Supabase is not configured. Add env vars in Vercel and redeploy.",
+        });
+        return;
+      }
+      const { error } = await client.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) {
+        showToast({ kind: "error", title: "Sign in failed", message: error.message });
+        return;
+      }
+      showToast({ kind: "success", title: "Signed in", message: "Welcome back to your workspace." });
+      router.push("/dashboard");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -85,7 +93,7 @@ export function LoginForm() {
       >
         Continue
       </button>
-      <p className="text-center text-xs text-zinc-500">Demo sign-in — stored locally for this browser.</p>
+      <p className="text-center text-xs text-zinc-500">Sign in using your account credentials.</p>
       <p className="text-center text-sm text-zinc-600">
         Don&apos;t have an account?{" "}
         <Link href="/signup" className="font-medium text-[var(--app-primary)] transition hover:text-[var(--app-primary-hover)]">

@@ -2,7 +2,7 @@
 
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { useAuthStore } from "@/stores/auth-store";
 import { DashboardShell } from "./DashboardShell";
@@ -10,22 +10,14 @@ import { DashboardShell } from "./DashboardShell";
 export function DashboardGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const [hydrated, setHydrated] = useState(false);
+  const loading = useAuthStore((s) => s.loading);
 
   useEffect(() => {
-    if (useAuthStore.persist.hasHydrated()) {
-      setHydrated(true);
-      return;
-    }
-    return useAuthStore.persist.onFinishHydration(() => setHydrated(true));
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
+    if (loading) return;
     if (!user) router.replace("/login");
-  }, [hydrated, user, router]);
+  }, [loading, user, router]);
 
-  if (!hydrated) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
         <ArrowPathIcon className="h-8 w-8 animate-spin text-[var(--app-primary)]" aria-hidden />
