@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 
+import { authUserFromSession } from "@/lib/auth/session-user";
 import { upsertUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
@@ -43,7 +44,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           });
           if (active) setUser(result.user);
         } catch {
-          if (active) clearUser();
+          if (active) setUser(authUserFromSession(sessionUser));
         } finally {
           if (active) setLoading(false);
         }
@@ -67,7 +68,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           });
           setUser(result.user);
         } catch {
-          clearUser();
+          setUser(authUserFromSession(sessionUser));
         } finally {
           setLoading(false);
         }

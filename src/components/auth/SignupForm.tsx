@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
+import { authUserFromSession } from "@/lib/auth/session-user";
 import { upsertUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
@@ -76,12 +77,13 @@ export function SignupForm() {
           showToast({ kind: "success", title: "Account created", message: "Your workspace is ready." });
           router.push("/dashboard");
         } catch {
+          useAuthStore.getState().setUser(authUserFromSession(signedUpUser, name.trim()));
           showToast({
-            kind: "error",
-            title: "Could not save profile",
-            message: "Account was created. Try signing in, or run the SQL trigger in Supabase (see scripts/).",
+            kind: "info",
+            title: "Account ready",
+            message: "You’re signed in. We’ll save your full profile when the database is available.",
           });
-          router.push("/login");
+          router.push("/dashboard");
         }
         return;
       }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
+import { authUserFromSession } from "@/lib/auth/session-user";
 import { upsertUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
@@ -62,10 +63,11 @@ export function LoginForm() {
           });
           useAuthStore.getState().setUser(result.user);
         } catch {
+          useAuthStore.getState().setUser(authUserFromSession(sessionUser));
           showToast({
-            kind: "error",
+            kind: "info",
             title: "Signed in",
-            message: "Session is active but profile sync failed. Try refreshing the page.",
+            message: "You’re signed in. Profile data will sync when the database is available.",
           });
           router.push("/dashboard");
           return;
