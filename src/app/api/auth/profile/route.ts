@@ -72,6 +72,14 @@ export async function POST(req: NextRequest) {
     if (isRecoverableDbError(error)) {
       return NextResponse.json(fallbackUser(body as { id: string; email: string; fullName?: string }));
     }
-    return NextResponse.json({ error: "Failed to sync profile" }, { status: 500 });
+    const prismaCode =
+      error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined;
+    return NextResponse.json(
+      {
+        error: "Failed to sync profile",
+        ...(prismaCode ? { prismaCode } : {}),
+      },
+      { status: 500 },
+    );
   }
 }
