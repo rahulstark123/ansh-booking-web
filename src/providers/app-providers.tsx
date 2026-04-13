@@ -11,9 +11,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <AppThemeProvider>
       <ToastProvider>
-        <AuthSessionProvider>
-          <QueryProvider>{children}</QueryProvider>
-        </AuthSessionProvider>
+        <QueryProvider>
+          <AuthSessionProvider>{children}</AuthSessionProvider>
+        </QueryProvider>
       </ToastProvider>
     </AppThemeProvider>
   );

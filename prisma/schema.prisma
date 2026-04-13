@@ -7,12 +7,14 @@ datasource db {
 }
 
 model UserProfile {
-  id        String   @id @db.Uuid
-  email     String   @unique
-  fullName  String
-  plan      Plan     @default(FREE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String             @id @db.Uuid
+  email             String             @unique
+  fullName          String
+  plan              Plan               @default(FREE)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  bookingEventTypes BookingEventType[]
+  scheduledMeetings ScheduledMeeting[]
 
   @@map("user_profiles")
 }
@@ -20,4 +22,85 @@ model UserProfile {
 enum Plan {
   FREE
   PRO
+}
+
+/// Matches sidebar "One-on-one" | "Group" | "Round robin" (`scheduling-event-types.ts`).
+enum BookingEventKind {
+  ONE_ON_ONE
+  GROUP
+  ROUND_ROBIN
+}
+
+/// A saved bookable event configuration from the scheduling drawer (per host).
+model BookingEventType {
+  id                 String             @id @default(uuid()) @db.Uuid
+  hostId             String             @db.Uuid
+  host               UserProfile        @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  kind               BookingEventKind
+  eventName          String
+  durationMinutes    Int
+  /// UI values: google-meet | zoom | phone | in-person
+  location           String
+  description        String?
+  /// working-hours | weekday-mornings | custom
+  availabilityPreset String
+  /// e.g. 1h, 4h, 12h, 24h
+  minNotice          String
+  bufferBeforeMinutes Int
+  bufferAfterMinutes Int
+  /// e.g. 14d, 30d, 60d, 90d
+  bookingWindow      String
+  bookingQuestion    String?
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  weekSlots          BookingWeekSlot[]
+  scheduledMeetings  ScheduledMeeting[]
+
+  @@index([hostId])
+  @@map("booking_event_types")
+}
+
+enum ScheduledMeetingStatus {
+  UPCOMING
+  COMPLETED
+  CANCELLED
+}
+
+/// Concrete booking instance for the host’s table (scheduling page list).
+model ScheduledMeeting {
+  id             String                 @id @default(uuid()) @db.Uuid
+  hostId         String                 @db.Uuid
+  host           UserProfile            @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  eventTypeId    String?                @db.Uuid
+  eventType      BookingEventType?      @relation(fields: [eventTypeId], references: [id], onDelete: SetNull)
+  title          String
+  /// Display string: One-on-one, Group, Round robin (matches UI mock).
+  eventTypeLabel String
+  guestName      String
+  startsAt       DateTime
+  endsAt         DateTime?
+  status         ScheduledMeetingStatus @default(UPCOMING)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([hostId])
+  @@index([hostId, startsAt])
+  @@map("scheduled_meetings")
+}
+
+/// Weekly grid from the sidebar (Mon–Sun); snapshot at save (including non-custom presets).
+model BookingWeekSlot {
+  id          String           @id @default(uuid()) @db.Uuid
+  eventTypeId String           @db.Uuid
+  eventType   BookingEventType @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
+  /// Mon, Tue, … Sun — matches scheduling page `DaySchedule.day`
+  dayKey      String
+  enabled     Boolean
+  /// HH:mm
+  startTime   String
+  endTime     String
+
+  @@unique([eventTypeId, dayKey])
+  @@map("booking_week_slots")
 }

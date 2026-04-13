@@ -13,8 +13,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
 
-import { SCHEDULED_MEETINGS } from "@/lib/meetings-data";
+import { useScheduledMeetings } from "@/hooks/use-scheduled-meetings";
 import { SCHEDULING_EVENT_TYPES, type SchedulingEventTypeId } from "@/lib/scheduling-event-types";
+import { useAuthStore } from "@/stores/auth-store";
 import { useDashboardUiStore } from "@/stores/dashboard-ui-store";
 
 type DaySchedule = {
@@ -35,6 +36,9 @@ const DEFAULT_WORKING_HOURS: DaySchedule[] = [
 ];
 
 export default function SchedulingPage() {
+  const user = useAuthStore((s) => s.user);
+  const { data: meetings = [], isLoading: meetingsLoading, isError: meetingsError } =
+    useScheduledMeetings(user?.id);
   const selected = useDashboardUiStore((s) => s.lastEventTypeChoice);
   const setSelected = useDashboardUiStore((s) => s.setLastEventTypeChoice);
   const [createOpen, setCreateOpen] = useState(false);
@@ -159,36 +163,51 @@ export default function SchedulingPage() {
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between border-b border-zinc-100 px-2 pb-3">
             <h2 className="text-sm font-semibold text-zinc-900">Scheduled meetings</h2>
-            <p className="text-xs text-zinc-500">{SCHEDULED_MEETINGS.length} total</p>
+            <p className="text-xs text-zinc-500">
+              {meetingsLoading ? "…" : `${meetings.length} total`}
+            </p>
           </div>
-          <ul className="divide-y divide-zinc-100">
-            {SCHEDULED_MEETINGS.map((meeting) => (
-              <li key={meeting.id} className="flex items-center justify-between gap-4 px-2 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
-                  <p className="text-xs text-zinc-500">
-                    {meeting.eventType} - {meeting.guest}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="hidden items-center gap-1 text-xs text-zinc-500 sm:flex">
-                    <CalendarDaysIcon className="h-4 w-4" />
-                    {meeting.time}
+          {meetingsError && (
+            <p className="px-2 py-4 text-sm text-rose-600">Could not load meetings. Try refreshing.</p>
+          )}
+          {!meetingsError && meetingsLoading && (
+            <p className="px-2 py-4 text-sm text-zinc-500">Loading meetings…</p>
+          )}
+          {!meetingsError && !meetingsLoading && meetings.length === 0 && (
+            <p className="px-2 py-4 text-sm text-zinc-500">
+              No meetings yet. They will appear here once bookings are stored for your account.
+            </p>
+          )}
+          {!meetingsError && !meetingsLoading && meetings.length > 0 && (
+            <ul className="divide-y divide-zinc-100">
+              {meetings.map((meeting) => (
+                <li key={meeting.id} className="flex items-center justify-between gap-4 px-2 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
+                    <p className="text-xs text-zinc-500">
+                      {meeting.eventType} - {meeting.guest}
+                    </p>
                   </div>
-                  <span
-                    className={[
-                      "rounded-md px-2 py-1 text-xs font-medium",
-                      meeting.status === "Upcoming"
-                        ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                        : "bg-zinc-100 text-zinc-600",
-                    ].join(" ")}
-                  >
-                    {meeting.status}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div className="flex items-center gap-4">
+                    <div className="hidden items-center gap-1 text-xs text-zinc-500 sm:flex">
+                      <CalendarDaysIcon className="h-4 w-4" />
+                      {meeting.time}
+                    </div>
+                    <span
+                      className={[
+                        "rounded-md px-2 py-1 text-xs font-medium",
+                        meeting.status === "Upcoming"
+                          ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                          : "bg-zinc-100 text-zinc-600",
+                      ].join(" ")}
+                    >
+                      {meeting.status}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
 

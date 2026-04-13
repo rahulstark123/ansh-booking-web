@@ -1,16 +1,18 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
+import { fetchAuthProfile } from "@/lib/auth/profile-query";
 import { authUserFromSession } from "@/lib/auth/session-user";
-import { syncUserProfile } from "@/lib/auth/upsert-user-profile";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function SignupForm() {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { showToast } = useToast();
@@ -70,9 +72,9 @@ export function SignupForm() {
         const accessToken = session?.access_token;
         if (session && accessToken) {
           try {
-            const result = await syncUserProfile(accessToken);
+            const profileUser = await fetchAuthProfile(queryClient, signedUpUser.id);
             syncedProfile = true;
-            useAuthStore.getState().setUser(result.user);
+            useAuthStore.getState().setUser(profileUser);
           } catch {
             useAuthStore.getState().setUser(authUserFromSession(signedUpUser, name.trim()));
           }

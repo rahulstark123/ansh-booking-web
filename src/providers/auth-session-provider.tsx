@@ -1,13 +1,16 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, type ReactNode } from "react";
 
+import { clearAuthProfileQueries, fetchAuthProfile } from "@/lib/auth/profile-query";
 import { authUserFromSession } from "@/lib/auth/session-user";
-import { syncUserProfile } from "@/lib/auth/upsert-user-profile";
+import { queryKeys } from "@/lib/query-keys";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const setUser = useAuthStore((s) => s.setUser);
   const clearUser = useAuthStore((s) => s.clearUser);
   const setLoading = useAuthStore((s) => s.setLoading);
@@ -38,8 +41,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         }
       } else if (accessToken) {
         try {
-          const result = await syncUserProfile(accessToken);
-          if (active) setUser(result.user);
+          const user = await fetchAuthProfile(queryClient, sessionUser.id);
+          if (active) setUser(user);
         } catch {
           if (active) setUser(authUserFromSession(sessionUser));
         } finally {
@@ -54,13 +57,12 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         const sessionUser = session?.user;
         const accessToken = session?.access_token;
         if (!sessionUser) {
+          clearAuthProfileQueries(queryClient);
           clearUser();
           setLoading(false);
           return;
         }
 
-        // INITIAL_SESSION duplicates bootstrap; TOKEN_REFRESHED often fires when returning to the tab.
-        // Do not flip global `loading` — that triggers DashboardGate’s full-screen spinner.
         const quiet =
           event === "INITIAL_SESSION" ||
           event === "TOKEN_REFRESHED";
@@ -70,8 +72,11 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         }
         try {
           if (accessToken) {
-            const result = await syncUserProfile(accessToken);
-            setUser(result.user);
+            if (event === "USER_UPDATED") {
+              await queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile(sessionUser.id) });
+            }
+            const user = await fetchAuthProfile(queryClient, sessionUser.id);
+            setUser(user);
           } else {
             setUser(authUserFromSession(sessionUser));
           }
@@ -93,7 +98,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       active = false;
       unsubscribe?.();
     };
-  }, [clearUser, setLoading, setUser]);
+  }, [clearUser, queryClient, setLoading, setUser]);
 
   return children;
 }
