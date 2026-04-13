@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 
-import { prisma } from "@/lib/prisma";
+import { getPrismaConfigurationError, prisma } from "@/lib/prisma";
 
 /** Only true “schema missing” — do not mask connection/SSL failures as a fake profile. */
 function isRecoverableDbError(error: unknown): boolean {
@@ -38,8 +38,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (!prisma) {
+    const cfg = getPrismaConfigurationError();
     return NextResponse.json(
-      { error: "DATABASE_URL is not set on the server", code: "missing_database_url" },
+      {
+        error: cfg?.message ?? "Database client is not available",
+        code: cfg?.code ?? "missing_database_url",
+      },
       { status: 503 },
     );
   }
