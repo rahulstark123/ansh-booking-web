@@ -7,7 +7,21 @@
 | Prisma **CLI** (migrate, db push) | `prisma.config.ts` → `datasource.url` | `DIRECT_URL` **or** fallback `DATABASE_URL` |
 | Prisma **runtime** (Next.js API, `adapter-pg`) | `src/lib/prisma.ts` | `DATABASE_URL` |
 
-Use a **direct** Postgres URL for migrations (port `5432` / session mode). Use a **pooler** URL for production app traffic on serverless (port `6543`, `pgbouncer=true`) when Supabase recommends it.
+Supabase’s **recommended Prisma setup** uses the **same pooler host** with two ports:
+
+| Variable | Port | Purpose |
+|----------|------|---------|
+| `DATABASE_URL` | **6543** + `?pgbouncer=true` | Transaction pooler — app runtime (`src/lib/prisma.ts`), serverless-friendly |
+| `DIRECT_URL` | **5432** | Session mode on the pooler — Prisma CLI migrations (`prisma.config.ts`) |
+
+Example shape (replace project ref, region `aws-0-…` / `aws-1-…`, and password from **Project Settings → Database**):
+
+```env
+DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require"
+DIRECT_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require"
+```
+
+You can still use `db.*.supabase.co:5432` for `DIRECT_URL` if you prefer the non-pooler “direct” host; migrations need a connection that is **not** transaction-pooled only.
 
 ## Why `P1001: Can't reach database server`
 

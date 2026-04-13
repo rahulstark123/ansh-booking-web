@@ -2,8 +2,8 @@ import { defineConfig } from "prisma/config";
 
 /**
  * Prisma CLI (migrate, db push, introspect) uses `datasource.url` here only.
- * Use a direct Postgres URL for DDL (Supabase session mode on :5432, or dedicated "direct").
- * PgBouncer transaction pooler (:6543) can hang or fail migrations — use DIRECT_URL when available.
+ * Prefer Supabase `DIRECT_URL`: same pooler host as DATABASE_URL but port **5432** (session mode)
+ * for DDL. Transaction pooler **6543** + `pgbouncer=true` can hang or fail migrations.
  *
  * Runtime app: `src/lib/prisma.ts` uses `process.env.DATABASE_URL` (pooler URL is OK for API routes).
  */
