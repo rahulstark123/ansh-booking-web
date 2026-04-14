@@ -1,4 +1,4 @@
-import type { ScheduledMeetingStatus } from "@prisma/client";
+import type { BookingEventKind, ScheduledMeetingStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -33,6 +33,12 @@ function statusToUi(s: ScheduledMeetingStatus): MeetingStatus {
 
 function isScheduledStatus(value: string): value is ScheduledMeetingStatus {
   return value === "UPCOMING" || value === "COMPLETED" || value === "CANCELLED";
+}
+
+function eventKindLabel(kind: BookingEventKind): string {
+  if (kind === "ONE_ON_ONE") return "One-on-one";
+  if (kind === "GROUP") return "Group";
+  return "Round robin";
 }
 
 function workspaceIdFromMeta(meta: unknown): number | null {
@@ -93,20 +99,46 @@ export async function GET(req: NextRequest) {
       (await prisma.userProfile.findUnique({ where: { id: authUser.id }, select: { wid: true } }))?.wid ??
       workspaceIdFromMeta(authUser.user_metadata) ??
       (await nextWorkspaceId(prisma));
-    const rows = await prisma.scheduledMeeting.findMany({
-      where: { hostId: authUser.id, wid },
-      orderBy: { startsAt: "asc" },
-    });
+    const [scheduledRows, bookedRows] = await Promise.all([
+      prisma.scheduledMeeting.findMany({
+        where: { hostId: authUser.id, wid },
+        orderBy: { startsAt: "asc" },
+      }),
+      prisma.bookedMeeting.findMany({
+        where: { hostId: authUser.id, wid },
+        orderBy: { startsAt: "asc" },
+        include: { eventType: { select: { eventName: true, kind: true } } },
+      }),
+    ]);
 
     const now = new Date();
-    let payload: ScheduledMeeting[] = rows.map((m) => ({
-      id: m.id,
-      title: m.title,
-      eventType: m.eventTypeLabel,
-      guest: m.guestName,
-      time: formatMeetingListTime(m.startsAt, now),
-      status: statusToUi(m.status),
-    }));
+    type Merged = { startsAt: Date; row: ScheduledMeeting };
+    const merged: Merged[] = [
+      ...scheduledRows.map((m) => ({
+        startsAt: m.startsAt,
+        row: {
+          id: m.id,
+          title: m.title,
+          eventType: m.eventTypeLabel,
+          guest: m.guestName,
+          time: formatMeetingListTime(m.startsAt, now),
+          status: statusToUi(m.status),
+        } satisfies ScheduledMeeting,
+      })),
+      ...bookedRows.map((b) => ({
+        startsAt: b.startsAt,
+        row: {
+          id: b.id,
+          title: b.eventType.eventName,
+          eventType: eventKindLabel(b.eventType.kind),
+          guest: `${b.guestName} <${b.guestEmail}>`,
+          time: formatMeetingListTime(b.startsAt, now),
+          status: statusToUi(b.status),
+        } satisfies ScheduledMeeting,
+      })),
+    ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+
+    let payload: ScheduledMeeting[] = merged.map((m) => m.row);
 
     // If event types exist but no concrete meetings yet, surface them as upcoming placeholders.
     if (payload.length === 0) {
