@@ -1,4 +1,4 @@
-import type { BookingEventKind, ScheduledMeetingStatus } from "@prisma/client";
+import type { ScheduledMeetingStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -35,12 +35,6 @@ function isScheduledStatus(value: string): value is ScheduledMeetingStatus {
   return value === "UPCOMING" || value === "COMPLETED" || value === "CANCELLED";
 }
 
-function eventKindLabel(kind: BookingEventKind): string {
-  if (kind === "ONE_ON_ONE") return "One-on-one";
-  if (kind === "GROUP") return "Group";
-  return "Round robin";
-}
-
 function workspaceIdFromMeta(meta: unknown): number | null {
   if (meta && typeof meta === "object") {
     const m = meta as Record<string, unknown>;
@@ -65,7 +59,8 @@ async function nextWorkspaceId(
 }
 
 /**
- * GET — list scheduled meetings for the authenticated host (scheduling page table).
+ * GET — list host-created scheduled meetings only (not public guest bookings).
+ * Guest bookings: `GET /api/booking/booked-meetings`.
  * Auth: `Authorization: Bearer <supabase access_token>`.
  */
 export async function GET(req: NextRequest) {
@@ -95,70 +90,69 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const rawPage = Number(req.nextUrl.searchParams.get("page") ?? "1");
+    const rawPageSize = Number(req.nextUrl.searchParams.get("pageSize") ?? "10");
+    const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+    const pageSize = Number.isFinite(rawPageSize) ? Math.min(50, Math.max(1, Math.floor(rawPageSize))) : 10;
+
     const wid =
       (await prisma.userProfile.findUnique({ where: { id: authUser.id }, select: { wid: true } }))?.wid ??
       workspaceIdFromMeta(authUser.user_metadata) ??
       (await nextWorkspaceId(prisma));
-    const [scheduledRows, bookedRows] = await Promise.all([
-      prisma.scheduledMeeting.findMany({
-        where: { hostId: authUser.id, wid },
-        orderBy: { startsAt: "asc" },
-      }),
-      prisma.bookedMeeting.findMany({
-        where: { hostId: authUser.id, wid },
-        orderBy: { startsAt: "asc" },
-        include: { eventType: { select: { eventName: true, kind: true } } },
-      }),
-    ]);
-
+    const scheduledCount = await prisma.scheduledMeeting.count({
+      where: { hostId: authUser.id, wid },
+    });
     const now = new Date();
-    type Merged = { startsAt: Date; row: ScheduledMeeting };
-    const merged: Merged[] = [
-      ...scheduledRows.map((m) => ({
-        startsAt: m.startsAt,
-        row: {
-          id: m.id,
-          title: m.title,
-          eventType: m.eventTypeLabel,
-          guest: m.guestName,
-          time: formatMeetingListTime(m.startsAt, now),
-          status: statusToUi(m.status),
-        } satisfies ScheduledMeeting,
-      })),
-      ...bookedRows.map((b) => ({
-        startsAt: b.startsAt,
-        row: {
-          id: b.id,
-          title: b.eventType.eventName,
-          eventType: eventKindLabel(b.eventType.kind),
-          guest: `${b.guestName} <${b.guestEmail}>`,
-          time: formatMeetingListTime(b.startsAt, now),
-          status: statusToUi(b.status),
-        } satisfies ScheduledMeeting,
-      })),
-    ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 
-    let payload: ScheduledMeeting[] = merged.map((m) => m.row);
-
-    // If event types exist but no concrete meetings yet, surface them as upcoming placeholders.
-    if (payload.length === 0) {
-      const eventTypes = await prisma.bookingEventType.findMany({
-        where: { hostId: authUser.id, wid, isActive: true },
-        orderBy: { createdAt: "desc" },
-        take: 20,
+    if (scheduledCount > 0) {
+      const scheduledRows = await prisma.scheduledMeeting.findMany({
+        where: { hostId: authUser.id, wid },
+        orderBy: { startsAt: "asc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       });
-      payload = eventTypes.map((e) => ({
-        id: `evt-${e.id}`,
-        title: e.eventName,
-        eventType:
-          e.kind === "ONE_ON_ONE" ? "One-on-one" : e.kind === "GROUP" ? "Group" : "Round robin",
-        guest: "No bookings yet",
-        time: "Event type created",
-        status: "Upcoming",
+      const items: ScheduledMeeting[] = scheduledRows.map((m) => ({
+        id: m.id,
+        title: m.title,
+        eventType: m.eventTypeLabel,
+        guest: m.guestName,
+        time: formatMeetingListTime(m.startsAt, now),
+        status: statusToUi(m.status),
       }));
+      return NextResponse.json({
+        items,
+        page,
+        pageSize,
+        total: scheduledCount,
+        totalPages: Math.max(1, Math.ceil(scheduledCount / pageSize)),
+      });
     }
 
-    return NextResponse.json(payload);
+    // If no host-created rows yet, surface event types so the host can copy booking links.
+    const eventTypeTotal = await prisma.bookingEventType.count({
+      where: { hostId: authUser.id, wid, isActive: true },
+    });
+    const eventTypes = await prisma.bookingEventType.findMany({
+      where: { hostId: authUser.id, wid, isActive: true },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+    const items: ScheduledMeeting[] = eventTypes.map((e) => ({
+      id: `evt-${e.id}`,
+      title: e.eventName,
+      eventType: e.kind === "ONE_ON_ONE" ? "One-on-one" : e.kind === "GROUP" ? "Group" : "Round robin",
+      guest: "No bookings yet",
+      time: "Event type created",
+      status: "Upcoming",
+    }));
+    return NextResponse.json({
+      items,
+      page,
+      pageSize,
+      total: eventTypeTotal,
+      totalPages: Math.max(1, Math.ceil(eventTypeTotal / pageSize)),
+    });
   } catch (e) {
     console.error("[api/booking/meetings]", e);
     return NextResponse.json({ error: "Failed to load meetings." }, { status: 500 });

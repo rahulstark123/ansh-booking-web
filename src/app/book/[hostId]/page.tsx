@@ -9,6 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import PhoneInput from "react-phone-input-2";
 
 type BookingEventKind = "ONE_ON_ONE" | "GROUP" | "ROUND_ROBIN";
 
@@ -107,6 +108,8 @@ export default function PublicBookingPage() {
   const [form, setForm] = useState({
     guestName: "",
     guestEmail: "",
+    guestCountryCode: "+91",
+    guestPhone: "",
     guests: "",
     notes: "",
   });
@@ -224,8 +227,8 @@ export default function PublicBookingPage() {
 
   async function handleSchedule() {
     if (!data || !selectedSlot) return;
-    if (!form.guestName.trim() || !form.guestEmail.trim()) {
-      setSubmitError("Name and email are required.");
+    if (!form.guestName.trim() || !form.guestEmail.trim() || !form.guestPhone.trim()) {
+      setSubmitError("Name, email, and phone are required.");
       return;
     }
     setSubmitError(null);
@@ -239,6 +242,8 @@ export default function PublicBookingPage() {
           startsAt: selectedSlot.iso,
           guestName: form.guestName.trim(),
           guestEmail: form.guestEmail.trim(),
+          guestCountryCode: form.guestCountryCode,
+          guestPhone: form.guestPhone.trim(),
           notes: form.notes.trim() || undefined,
         }),
       });
@@ -444,6 +449,31 @@ export default function PublicBookingPage() {
                 value={form.guestEmail}
                 onChange={(e) => setForm((prev) => ({ ...prev, guestEmail: e.target.value }))}
                 className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+
+            <label className="mb-3 block">
+              <span className="mb-1 block text-sm font-medium text-zinc-800">Phone number *</span>
+              <PhoneInput
+                country="in"
+                value={`${form.guestCountryCode.replace("+", "")}${form.guestPhone}`}
+                onChange={(value, country: { dialCode?: string }) => {
+                  const dialCode = country?.dialCode ?? "";
+                  const nextPhone =
+                    dialCode && value.startsWith(dialCode) ? value.slice(dialCode.length) : value;
+                  setForm((prev) => ({
+                    ...prev,
+                    guestCountryCode: dialCode ? `+${dialCode}` : prev.guestCountryCode,
+                    guestPhone: nextPhone,
+                  }));
+                }}
+                enableSearch
+                countryCodeEditable={false}
+                inputProps={{ name: "phone", required: true, placeholder: "Phone number" }}
+                containerClass="react-phone-input-container"
+                inputClass="!w-full !h-[42px] !rounded-lg !border-zinc-200 !bg-white !pl-14 !text-sm !text-zinc-900 focus:!border-blue-400 focus:!ring-2 focus:!ring-blue-100"
+                buttonClass="!border-zinc-200 !bg-white hover:!bg-zinc-50"
+                dropdownClass="!text-sm"
               />
             </label>
 

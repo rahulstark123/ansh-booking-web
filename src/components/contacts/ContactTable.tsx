@@ -10,12 +10,22 @@ export function ContactTable({
   onFilterChange,
   selectedId,
   onSelect,
+  page,
+  totalPages,
+  total,
+  onPrevPage,
+  onNextPage,
 }: {
   contacts: Contact[];
   filter: FilterId;
   onFilterChange: (value: FilterId) => void;
   selectedId: string;
   onSelect: (id: string) => void;
+  page: number;
+  totalPages: number;
+  total: number;
+  onPrevPage: () => void;
+  onNextPage: () => void;
 }) {
   return (
     <>
@@ -70,6 +80,29 @@ export function ContactTable({
             </li>
           ))}
         </ul>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-xs text-zinc-500">
+          Page {page} of {totalPages} - {total} total
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onPrevPage}
+            disabled={page <= 1}
+            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={onNextPage}
+            disabled={page >= totalPages}
+            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </>
   );

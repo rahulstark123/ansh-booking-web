@@ -17,6 +17,7 @@ model UserProfile {
   bookingEventTypes BookingEventType[]
   scheduledMeetings ScheduledMeeting[]
   bookedMeetings    BookedMeeting[]
+  contacts          Contact[]
   availabilityHours AvailabilityWeeklyHour[]
 
   @@map("user_profiles")
@@ -107,6 +108,8 @@ model BookedMeeting {
   eventType   BookingEventType       @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
   guestName   String
   guestEmail  String
+  guestCountryCode String?
+  guestPhone  String?
   guestNotes  String?
   startsAt    DateTime
   endsAt      DateTime
@@ -119,6 +122,26 @@ model BookedMeeting {
   @@index([eventTypeId, startsAt])
   @@index([hostId, startsAt])
   @@map("booked_meetings")
+}
+
+/// Host contacts (people who booked or were added manually).
+model Contact {
+  id         String      @id @default(uuid()) @db.Uuid
+  hostId     String      @db.Uuid
+  wid        Int
+  host       UserProfile @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  fullName   String
+  email      String
+  countryCode String?
+  phone      String?
+  lastBookedAt DateTime?
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([hostId, email])
+  @@index([wid, hostId])
+  @@map("contacts")
 }
 
 /// Weekly grid from the sidebar (Mon–Sun); snapshot at save (including non-custom presets).

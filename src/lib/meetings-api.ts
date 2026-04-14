@@ -1,7 +1,22 @@
 import type { ScheduledMeeting } from "@/lib/meetings-data";
 
-export async function fetchScheduledMeetings(accessToken: string): Promise<ScheduledMeeting[]> {
-  const res = await fetch("/api/booking/meetings", {
+export type MeetingsPageResult = {
+  items: ScheduledMeeting[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export async function fetchScheduledMeetings(
+  accessToken: string,
+  params: { page: number; pageSize: number },
+): Promise<MeetingsPageResult> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize),
+  });
+  const res = await fetch(`/api/booking/meetings?${query.toString()}`, {
     method: "GET",
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
@@ -9,7 +24,28 @@ export async function fetchScheduledMeetings(accessToken: string): Promise<Sched
   if (!res.ok) {
     throw new Error("Failed to load meetings");
   }
-  return (await res.json()) as ScheduledMeeting[];
+  return (await res.json()) as MeetingsPageResult;
+}
+
+/** Guest bookings from public `/book/...` links (`BookedMeeting` rows). */
+export async function fetchBookedMeetings(
+  accessToken: string,
+  params: { page: number; pageSize: number; filter: "all" | "upcoming" | "completed" },
+): Promise<MeetingsPageResult> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    pageSize: String(params.pageSize),
+    filter: params.filter,
+  });
+  const res = await fetch(`/api/booking/booked-meetings?${query.toString()}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error("Failed to load booked meetings");
+  }
+  return (await res.json()) as MeetingsPageResult;
 }
 
 export type CreateScheduledMeetingPayload = {

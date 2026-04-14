@@ -49,8 +49,16 @@ export default function SchedulingPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const user = useAuthStore((s) => s.user);
-  const { data: meetings = [], isLoading: meetingsLoading, isError: meetingsError } =
-    useScheduledMeetings(user?.id);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const {
+    data: meetingsResponse,
+    isLoading: meetingsLoading,
+    isError: meetingsError,
+  } = useScheduledMeetings(user?.id, { page, pageSize });
+  const meetings = meetingsResponse?.items ?? [];
+  const totalPages = meetingsResponse?.totalPages ?? 1;
+  const total = meetingsResponse?.total ?? 0;
   const selected = useDashboardUiStore((s) => s.lastEventTypeChoice);
   const setSelected = useDashboardUiStore((s) => s.setLastEventTypeChoice);
   const [createOpen, setCreateOpen] = useState(false);
@@ -142,7 +150,7 @@ export default function SchedulingPage() {
       });
 
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.meetings.list(data.session.user.id),
+        queryKey: queryKeys.meetings.root,
       });
       showToast({ kind: "success", title: "Event saved", message: "Your booking event type is ready." });
       setSetupOpen(false);
@@ -169,6 +177,12 @@ export default function SchedulingPage() {
     } catch {
       showToast({ kind: "error", title: "Copy failed", message: "Could not copy link. Please try again." });
     }
+  }
+
+  function handleOpenMeetingBooking(meetingId: string) {
+    const link = bookingLinkForMeeting(meetingId);
+    if (!link) return;
+    window.open(link, "_blank", "noopener,noreferrer");
   }
 
   function handleRowAction(action: "edit" | "delete" | "toggle", meetingTitle: string) {
@@ -282,7 +296,7 @@ export default function SchedulingPage() {
           <div className="mb-3 flex items-center justify-between border-b border-zinc-100 px-2 pb-3">
             <h2 className="text-sm font-semibold text-zinc-900">Scheduled meetings</h2>
             <p className="text-xs text-zinc-500">
-              {meetingsLoading ? "…" : `${meetings.length} total`}
+              {meetingsLoading ? "…" : `${total} total`}
             </p>
           </div>
           {meetingsError && (
@@ -293,95 +307,134 @@ export default function SchedulingPage() {
           )}
           {!meetingsError && !meetingsLoading && meetings.length === 0 && (
             <p className="px-2 py-4 text-sm text-zinc-500">
-              No meetings yet. They will appear here once bookings are stored for your account.
+              No host-created meetings yet. Create an event type to get a booking link, or add meetings from
+              your tools.
             </p>
           )}
           {!meetingsError && !meetingsLoading && meetings.length > 0 && (
-            <ul className="divide-y divide-zinc-100">
-              {meetings.map((meeting) => (
-                <li key={meeting.id} className="flex items-center justify-between gap-4 px-2 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
-                    <p className="text-xs text-zinc-500">
-                      {meeting.eventType} - {meeting.guest}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="hidden items-center gap-1 text-xs text-zinc-500 sm:flex">
-                      <CalendarDaysIcon className="h-4 w-4" />
-                      {meeting.time}
+            <>
+              <ul className="divide-y divide-zinc-100">
+                {meetings.map((meeting) => (
+                  <li key={meeting.id} className="flex items-start justify-between gap-4 px-2 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
+                      <p className="text-xs text-zinc-500">
+                        {meeting.eventType} - {meeting.guest}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="inline-flex items-center gap-1 text-xs text-zinc-500">
+                          <CalendarDaysIcon className="h-4 w-4" />
+                          {meeting.time}
+                        </div>
+                        <span
+                          className={[
+                            "rounded-md px-2 py-1 text-xs font-medium",
+                            meeting.status === "Upcoming"
+                              ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                              : "bg-zinc-100 text-zinc-600",
+                          ].join(" ")}
+                        >
+                          {meeting.status}
+                        </span>
+                      </div>
                     </div>
-                    <span
-                      className={[
-                        "rounded-md px-2 py-1 text-xs font-medium",
-                        meeting.status === "Upcoming"
-                          ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                          : "bg-zinc-100 text-zinc-600",
-                      ].join(" ")}
-                    >
-                      {meeting.status}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyMeetingLink(meeting.id)}
-                      className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                    >
-                      <LinkIcon className="h-3.5 w-3.5" />
-                      Copy link
-                    </button>
-                    <div ref={rowMenuOpenFor === meeting.id ? rowMenuRef : null} className="relative">
+                    <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        aria-label={`More actions for ${meeting.title}`}
-                        onClick={() =>
-                          setRowMenuOpenFor((current) => (current === meeting.id ? null : meeting.id))
-                        }
-                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800"
+                        onClick={() => handleCopyMeetingLink(meeting.id)}
+                        className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
                       >
-                        <EllipsisHorizontalIcon className="h-5 w-5" />
+                        <LinkIcon className="h-3.5 w-3.5" />
+                        Copy link
                       </button>
-                      {rowMenuOpenFor === meeting.id && (
-                        <div className="absolute top-[calc(100%+0.35rem)] right-0 z-30 min-w-[10rem] overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRowMenuOpenFor(null);
-                              handleRowAction("edit", meeting.title);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
-                          >
-                            <PencilSquareIcon className="h-4 w-4" />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRowMenuOpenFor(null);
-                              handleRowAction("delete", meeting.title);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                            Delete
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRowMenuOpenFor(null);
-                              handleRowAction("toggle", meeting.title);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
-                          >
-                            <PowerIcon className="h-4 w-4" />
-                            On / Off
-                          </button>
-                        </div>
-                      )}
+                      <div ref={rowMenuOpenFor === meeting.id ? rowMenuRef : null} className="relative">
+                        <button
+                          type="button"
+                          aria-label={`More actions for ${meeting.title}`}
+                          onClick={() =>
+                            setRowMenuOpenFor((current) => (current === meeting.id ? null : meeting.id))
+                          }
+                          className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800"
+                        >
+                          <EllipsisHorizontalIcon className="h-5 w-5" />
+                        </button>
+                        {rowMenuOpenFor === meeting.id && (
+                          <div className="absolute top-[calc(100%+0.35rem)] right-0 z-30 min-w-[10rem] overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRowMenuOpenFor(null);
+                                handleRowAction("edit", meeting.title);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
+                            >
+                              <PencilSquareIcon className="h-4 w-4" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRowMenuOpenFor(null);
+                                handleRowAction("delete", meeting.title);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                              Delete
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRowMenuOpenFor(null);
+                                handleOpenMeetingBooking(meeting.id);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                              Go to booking
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRowMenuOpenFor(null);
+                                handleRowAction("toggle", meeting.title);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
+                            >
+                              <PowerIcon className="h-4 w-4" />
+                              On / Off
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex items-center justify-between px-2">
+                <p className="text-xs text-zinc-500">
+                  Page {page} of {totalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </section>
       </div>

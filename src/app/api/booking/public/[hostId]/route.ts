@@ -191,6 +191,8 @@ type CreatePublicBookingBody = {
   startsAt?: string;
   guestName?: string;
   guestEmail?: string;
+  guestCountryCode?: string;
+  guestPhone?: string;
   notes?: string;
 };
 
@@ -212,9 +214,11 @@ export async function POST(
 
   const guestNameNorm = body.guestName?.trim() ?? "";
   const guestEmailNorm = body.guestEmail?.trim() ?? "";
-  if (!body.eventId || !body.startsAt || !guestNameNorm || !guestEmailNorm) {
+  const guestCountryCodeNorm = body.guestCountryCode?.trim() ?? "";
+  const guestPhoneNorm = body.guestPhone?.trim() ?? "";
+  if (!body.eventId || !body.startsAt || !guestNameNorm || !guestEmailNorm || !guestPhoneNorm || !guestCountryCodeNorm) {
     return NextResponse.json(
-      { error: "eventId, startsAt, guestName and guestEmail are required." },
+      { error: "eventId, startsAt, guestName, guestEmail, guestCountryCode and guestPhone are required." },
       { status: 400 },
     );
   }
@@ -224,6 +228,12 @@ export async function POST(
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmailNorm)) {
     return NextResponse.json({ error: "guestEmail must be a valid email." }, { status: 400 });
+  }
+  if (!/^\+\d{1,4}$/.test(guestCountryCodeNorm)) {
+    return NextResponse.json({ error: "guestCountryCode format is invalid." }, { status: 400 });
+  }
+  if (!/^[\d\s()-]{6,20}$/.test(guestPhoneNorm)) {
+    return NextResponse.json({ error: "guestPhone format is invalid." }, { status: 400 });
   }
 
   const prisma = getPrisma();
@@ -286,6 +296,8 @@ export async function POST(
               eventTypeId: eventType.id,
               guestName: guestNameNorm,
               guestEmail: guestEmailNorm,
+              guestCountryCode: guestCountryCodeNorm,
+              guestPhone: guestPhoneNorm,
               guestNotes: body.notes?.trim() || null,
               startsAt,
               endsAt,
@@ -296,6 +308,31 @@ export async function POST(
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
+
+      await prisma.contact.upsert({
+        where: {
+          hostId_email: {
+            hostId: host.id,
+            email: guestEmailNorm,
+          },
+        },
+        update: {
+          fullName: guestNameNorm,
+          countryCode: guestCountryCodeNorm,
+          phone: guestPhoneNorm,
+          lastBookedAt: startsAt,
+        },
+        create: {
+          hostId: host.id,
+          wid: host.wid,
+          fullName: guestNameNorm,
+          email: guestEmailNorm,
+          countryCode: guestCountryCodeNorm,
+          phone: guestPhoneNorm,
+          lastBookedAt: startsAt,
+          notes: body.notes?.trim() || null,
+        },
+      });
 
       return NextResponse.json(
         {
