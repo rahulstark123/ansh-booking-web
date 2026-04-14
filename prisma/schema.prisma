@@ -20,6 +20,7 @@ model UserProfile {
   contacts          Contact[]
   integrations      IntegrationConnection[]
   availabilityHours AvailabilityWeeklyHour[]
+  availabilityOverrides AvailabilityOverride[]
 
   @@map("user_profiles")
 }
@@ -204,4 +205,25 @@ model AvailabilityWeeklyHour {
   @@unique([hostId, wid, dayOfWeek])
   @@index([wid, hostId])
   @@map("availability_weekly_hours")
+}
+
+/// Date-specific availability override windows (used to block or customize one day).
+model AvailabilityOverride {
+  id        String      @id @default(uuid()) @db.Uuid
+  hostId    String      @db.Uuid
+  host      UserProfile @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  wid       Int
+  date      DateTime    @db.Date
+  /// HH:mm (ignored when isAllDay = true)
+  startTime String?
+  /// HH:mm (ignored when isAllDay = true)
+  endTime   String?
+  isAllDay  Boolean     @default(false)
+  label     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([hostId, wid, date])
+  @@index([wid, hostId])
+  @@map("availability_overrides")
 }

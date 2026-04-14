@@ -22,6 +22,14 @@ function scheduledBlockEnd(startsAt: Date, endsAt: Date | null): Date {
   return endsAt ?? addMinutes(startsAt, 60);
 }
 
+function overrideToInterval(date: Date, startTime: string, endTime: string): { startsAt: Date; endsAt: Date } {
+  const day = date.toISOString().slice(0, 10);
+  return {
+    startsAt: new Date(`${day}T${startTime}:00+05:30`),
+    endsAt: new Date(`${day}T${endTime}:00+05:30`),
+  };
+}
+
 type PublicAvailabilityRow = {
   dayOfWeek: number;
   enabled: boolean;
@@ -143,7 +151,7 @@ export async function GET(
                 : DEFAULT_WEEK,
             );
 
-    const [scheduledBlocks, guestBookedBlocks] = await Promise.all([
+    const [scheduledBlocks, guestBookedBlocks, overrides] = await Promise.all([
       prisma.scheduledMeeting.findMany({
         where: { hostId: host.id, wid: host.wid, status: "UPCOMING" },
         select: { startsAt: true, endsAt: true },
@@ -154,7 +162,22 @@ export async function GET(
             select: { startsAt: true, endsAt: true },
           })
         : Promise.resolve([]),
+      prisma.availabilityOverride.findMany({
+        where: { hostId: host.id, wid: host.wid },
+        select: { date: true, startTime: true, endTime: true, isAllDay: true },
+      }),
     ]);
+
+    const overrideIntervals = overrides.flatMap((o) => {
+      const day = o.date.toISOString().slice(0, 10);
+      if (o.isAllDay) {
+        const startsAt = new Date(`${day}T00:00:00+05:30`);
+        const endsAt = new Date(`${day}T23:59:59+05:30`);
+        return [{ startsAt, endsAt }];
+      }
+      if (!o.startTime || !o.endTime) return [];
+      return [overrideToInterval(o.date, o.startTime, o.endTime)];
+    });
 
     const bookedIntervals = [
       ...scheduledBlocks.map((s) => ({
@@ -164,6 +187,10 @@ export async function GET(
       ...guestBookedBlocks.map((b) => ({
         startsAt: b.startsAt.toISOString(),
         endsAt: b.endsAt.toISOString(),
+      })),
+      ...overrideIntervals.map((o) => ({
+        startsAt: o.startsAt.toISOString(),
+        endsAt: o.endsAt.toISOString(),
       })),
     ];
 
@@ -295,6 +322,31 @@ export async function POST(
                 const err = new Error("SLOT_TAKEN");
                 throw err;
               }
+            }
+          }
+
+          const dateStart = new Date(startsAt);
+          dateStart.setUTCHours(0, 0, 0, 0);
+          const dateEnd = new Date(startsAt);
+          dateEnd.setUTCHours(23, 59, 59, 999);
+          const overrides = await tx.availabilityOverride.findMany({
+            where: {
+              hostId: host.id,
+              wid: host.wid,
+              date: { gte: dateStart, lte: dateEnd },
+            },
+            select: { date: true, startTime: true, endTime: true, isAllDay: true },
+          });
+          for (const o of overrides) {
+            if (o.isAllDay) {
+              const err = new Error("SLOT_TAKEN");
+              throw err;
+            }
+            if (!o.startTime || !o.endTime) continue;
+            const interval = overrideToInterval(o.date, o.startTime, o.endTime);
+            if (intervalsOverlap(startsAt, endsAt, interval.startsAt, interval.endsAt)) {
+              const err = new Error("SLOT_TAKEN");
+              throw err;
             }
           }
 

@@ -27,5 +27,6 @@ export const queryKeys = {
   availability: {
     root: ["availability"] as const,
     weekly: (hostId: string) => [...queryKeys.availability.root, "weekly", hostId] as const,
+    overrides: (hostId: string) => [...queryKeys.availability.root, "overrides", hostId] as const,
   },
 } as const;
