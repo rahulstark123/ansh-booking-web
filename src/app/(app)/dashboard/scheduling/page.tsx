@@ -152,6 +152,7 @@ export default function SchedulingPage() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.meetings.root,
       });
+      setPage(1);
       showToast({ kind: "success", title: "Event saved", message: "Your booking event type is ready." });
       setSetupOpen(false);
     } catch {
@@ -234,6 +235,12 @@ export default function SchedulingPage() {
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [rowMenuOpenFor]);
 
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(Math.max(1, totalPages));
+    }
+  }, [page, totalPages]);
+
   const selectedType = SCHEDULING_EVENT_TYPES.find((x) => x.id === selected) ?? null;
 
   return (
@@ -243,7 +250,7 @@ export default function SchedulingPage() {
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Scheduling</h1>
             <p className="mt-1 text-sm text-zinc-600">
-              All scheduled meetings appear here. Use Create to add a new event type.
+              All your created events appear here. Use Create to add a new event type.
             </p>
           </div>
           <div ref={createMenuRef} className="relative">
@@ -306,7 +313,7 @@ export default function SchedulingPage() {
 
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between border-b border-zinc-100 px-2 pb-3">
-            <h2 className="text-sm font-semibold text-zinc-900">Scheduled meetings</h2>
+            <h2 className="text-sm font-semibold text-zinc-900">My Events</h2>
             <p className="text-xs text-zinc-500">
               {meetingsLoading ? "…" : `${total} total`}
             </p>

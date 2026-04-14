@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { sendBookingConfirmationEmail } from "@/lib/booking-confirmation-email";
 import { generateMeetingLinkForHost } from "@/lib/google-meet";
 import { getPrisma } from "@/lib/prisma";
 
@@ -245,7 +246,7 @@ export async function POST(
   try {
     const host = await prisma.userProfile.findUnique({
       where: { id: hostId },
-      select: { id: true, wid: true },
+      select: { id: true, wid: true, fullName: true, email: true },
     });
     if (!host) {
       return NextResponse.json({ error: "Host not found." }, { status: 404 });
@@ -342,6 +343,25 @@ export async function POST(
           notes: body.notes?.trim() || null,
         },
       });
+
+      try {
+        await sendBookingConfirmationEmail({
+          bookingId: booking.id,
+          guestName: guestNameNorm,
+          guestEmail: guestEmailNorm,
+          hostName: host.fullName,
+          hostEmail: host.email,
+          eventName: eventType.eventName,
+          startsAt,
+          endsAt,
+          meetingLink: booking.meetingLink,
+          timezone: "Asia/Kolkata",
+          notes: body.notes?.trim() || null,
+        });
+      } catch (mailError) {
+        // Booking remains successful even if email delivery temporarily fails.
+        console.error("[booking-confirmation-email]", mailError);
+      }
 
       return NextResponse.json(
         {

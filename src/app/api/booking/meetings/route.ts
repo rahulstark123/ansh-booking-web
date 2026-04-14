@@ -60,8 +60,8 @@ async function nextWorkspaceId(
 }
 
 /**
- * GET — list host-created scheduled meetings only (not public guest bookings).
- * Guest bookings: `GET /api/booking/booked-meetings`.
+ * GET — list host-created schedules (event types) for Scheduling table.
+ * Consumer bookings are shown from `GET /api/booking/booked-meetings`.
  * Auth: `Authorization: Bearer <supabase access_token>`.
  */
 export async function GET(req: NextRequest) {
@@ -100,37 +100,6 @@ export async function GET(req: NextRequest) {
       (await prisma.userProfile.findUnique({ where: { id: authUser.id }, select: { wid: true } }))?.wid ??
       workspaceIdFromMeta(authUser.user_metadata) ??
       (await nextWorkspaceId(prisma));
-    const scheduledCount = await prisma.scheduledMeeting.count({
-      where: { hostId: authUser.id, wid },
-    });
-    const now = new Date();
-
-    if (scheduledCount > 0) {
-      const scheduledRows = await prisma.scheduledMeeting.findMany({
-        where: { hostId: authUser.id, wid },
-        orderBy: { startsAt: "asc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      });
-      const items: ScheduledMeeting[] = scheduledRows.map((m) => ({
-        id: m.id,
-        title: m.title,
-        eventType: m.eventTypeLabel,
-        guest: m.guestName,
-        time: formatMeetingListTime(m.startsAt, now),
-        status: statusToUi(m.status),
-        meetingLink: m.meetingLink,
-      }));
-      return NextResponse.json({
-        items,
-        page,
-        pageSize,
-        total: scheduledCount,
-        totalPages: Math.max(1, Math.ceil(scheduledCount / pageSize)),
-      });
-    }
-
-    // If no host-created rows yet, surface event types so the host can copy booking links.
     const eventTypeTotal = await prisma.bookingEventType.count({
       where: { hostId: authUser.id, wid, isActive: true },
     });
@@ -144,8 +113,8 @@ export async function GET(req: NextRequest) {
       id: `evt-${e.id}`,
       title: e.eventName,
       eventType: e.kind === "ONE_ON_ONE" ? "One-on-one" : e.kind === "GROUP" ? "Group" : "Round robin",
-      guest: "No bookings yet",
-      time: "Event type created",
+      guest: "Schedule created",
+      time: "Booking link ready",
       status: "Upcoming",
     }));
     return NextResponse.json({

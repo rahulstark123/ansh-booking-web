@@ -36,13 +36,22 @@ export async function GET(req: NextRequest) {
 
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
-  const google = await prisma.integrationConnection.findUnique({
-    where: { hostId_provider: { hostId: user.id, provider: "GOOGLE" } },
-    select: { id: true, expiresAt: true, updatedAt: true },
-  });
-  return NextResponse.json({
-    googleMeetConnected: Boolean(google),
-    googleMeetExpiresAt: google?.expiresAt ?? null,
-    googleMeetUpdatedAt: google?.updatedAt ?? null,
-  });
+  try {
+    const google = await prisma.integrationConnection.findUnique({
+      where: { hostId_provider: { hostId: user.id, provider: "GOOGLE" } },
+      select: { id: true, expiresAt: true, updatedAt: true },
+    });
+    return NextResponse.json({
+      googleMeetConnected: Boolean(google),
+      googleMeetExpiresAt: google?.expiresAt ?? null,
+      googleMeetUpdatedAt: google?.updatedAt ?? null,
+    });
+  } catch (e) {
+    console.error("[api/integrations/google/status]", e);
+    return NextResponse.json({
+      googleMeetConnected: false,
+      googleMeetExpiresAt: null,
+      googleMeetUpdatedAt: null,
+    });
+  }
 }
