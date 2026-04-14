@@ -18,6 +18,7 @@ model UserProfile {
   scheduledMeetings ScheduledMeeting[]
   bookedMeetings    BookedMeeting[]
   contacts          Contact[]
+  integrations      IntegrationConnection[]
   availabilityHours AvailabilityWeeklyHour[]
 
   @@map("user_profiles")
@@ -74,6 +75,10 @@ enum ScheduledMeetingStatus {
   CANCELLED
 }
 
+enum IntegrationProvider {
+  GOOGLE
+}
+
 /// Host-created meeting row (dashboard / internal). Public link bookings use `BookedMeeting`.
 model ScheduledMeeting {
   id             String                 @id @default(uuid()) @db.Uuid
@@ -86,6 +91,7 @@ model ScheduledMeeting {
   /// Display string: One-on-one, Group, Round robin (matches UI mock).
   eventTypeLabel String
   guestName      String
+  meetingLink    String?
   startsAt       DateTime
   endsAt         DateTime?
   status         ScheduledMeetingStatus @default(UPCOMING)
@@ -108,6 +114,7 @@ model BookedMeeting {
   eventType   BookingEventType       @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
   guestName   String
   guestEmail  String
+  meetingLink String?
   guestCountryCode String?
   guestPhone  String?
   guestNotes  String?
@@ -142,6 +149,24 @@ model Contact {
   @@unique([hostId, email])
   @@index([wid, hostId])
   @@map("contacts")
+}
+
+model IntegrationConnection {
+  id           String              @id @default(uuid()) @db.Uuid
+  hostId       String              @db.Uuid
+  wid          Int
+  host         UserProfile         @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  provider     IntegrationProvider
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  scope        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([hostId, provider])
+  @@index([wid, hostId])
+  @@map("integration_connections")
 }
 
 /// Weekly grid from the sidebar (Mon–Sun); snapshot at save (including non-custom presets).

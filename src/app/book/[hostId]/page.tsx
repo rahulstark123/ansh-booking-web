@@ -115,6 +115,7 @@ export default function PublicBookingPage() {
   });
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmedMeetingLink, setConfirmedMeetingLink] = useState<string | null>(null);
 
   const [data, setData] = useState<PublicBookingPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -251,6 +252,9 @@ export default function PublicBookingPage() {
       if (!res.ok) {
         throw new Error(payload?.error || "Could not schedule this event.");
       }
+      setConfirmedMeetingLink(
+        payload && typeof payload.meetingLink === "string" ? payload.meetingLink : null,
+      );
       setStep("confirmed");
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Could not schedule this event.");
@@ -303,6 +307,17 @@ export default function PublicBookingPage() {
                   ? "Singapore Time"
                   : "UTC"}
             </p>
+            {confirmedMeetingLink && (
+              <a
+                href={confirmedMeetingLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
+                <GlobeAltIcon className="h-4 w-4" />
+                Join meeting link
+              </a>
+            )}
           </>
         )}
         </aside>

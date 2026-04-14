@@ -2,7 +2,9 @@
 
 import { CheckCircleIcon, LinkIcon } from "@heroicons/react/24/outline";
 import { siGmail, siGooglemeet, siZoom } from "simple-icons/icons";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type IntegrationKey = "gmail" | "google-meet" | "zoom";
 
@@ -43,17 +45,72 @@ const INTEGRATIONS: Integration[] = [
 ];
 
 export default function IntegrationsPage() {
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(true);
   const [connected, setConnected] = useState<Record<IntegrationKey, boolean>>({
     gmail: false,
     "google-meet": false,
     zoom: false,
   });
 
+  async function loadGoogleStatus() {
+    setLoadingGoogle(true);
+    try {
+      const client = await getSupabaseBrowserClient();
+      if (!client) return;
+      const { data, error } = await client.auth.getSession();
+      if (error || !data.session?.access_token) return;
+      const res = await fetch("/api/integrations/google/status", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      const body = await res.json().catch(() => null);
+      if (res.ok) {
+        setGoogleConnected(Boolean(body?.googleMeetConnected));
+      }
+    } finally {
+      setLoadingGoogle(false);
+    }
+  }
+
+  useEffect(() => {
+    loadGoogleStatus();
+  }, []);
+
+  useEffect(() => {
+    setConnected((prev) => ({ ...prev, "google-meet": googleConnected }));
+  }, [googleConnected]);
+
   function toggleIntegration(key: IntegrationKey) {
     setConnected((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  const connectedCount = Object.values(connected).filter(Boolean).length;
+  async function toggleGoogleIntegration() {
+    const client = await getSupabaseBrowserClient();
+    if (!client) return;
+    const { data, error } = await client.auth.getSession();
+    if (error || !data.session?.access_token) return;
+
+    if (googleConnected) {
+      await fetch("/api/integrations/google/disconnect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      setGoogleConnected(false);
+      return;
+    }
+
+    const res = await fetch("/api/integrations/google/connect", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${data.session.access_token}` },
+    });
+    const body = await res.json().catch(() => null);
+    if (res.ok && body?.authUrl) {
+      window.location.href = body.authUrl;
+    }
+  }
+
+  const connectedCount = useMemo(() => Object.values(connected).filter(Boolean).length, [connected]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -109,15 +166,23 @@ export default function IntegrationsPage() {
               <div className="mt-4 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => toggleIntegration(item.key)}
+                  onClick={() =>
+                    item.key === "google-meet" ? toggleGoogleIntegration() : toggleIntegration(item.key)
+                  }
+                  disabled={item.key === "google-meet" && loadingGoogle}
                   className={[
                     "rounded-md px-3 py-2 text-xs font-medium transition",
                     isConnected
                       ? "border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
                       : "bg-[var(--app-primary)] text-[var(--app-primary-foreground)] hover:bg-[var(--app-primary-hover)]",
+                    item.key === "google-meet" && loadingGoogle ? "opacity-60" : "",
                   ].join(" ")}
                 >
-                  {isConnected ? "Disconnect" : "Connect"}
+                  {item.key === "google-meet" && loadingGoogle
+                    ? "Checking..."
+                    : isConnected
+                      ? "Disconnect"
+                      : "Connect"}
                 </button>
 
                 <button

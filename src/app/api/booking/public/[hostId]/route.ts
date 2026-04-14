@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { generateMeetingLinkForHost } from "@/lib/google-meet";
 import { getPrisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -252,7 +253,7 @@ export async function POST(
 
     const eventType = await prisma.bookingEventType.findFirst({
       where: { id: body.eventId, hostId: host.id, wid: host.wid, isActive: true },
-      select: { id: true, eventName: true, kind: true, durationMinutes: true },
+      select: { id: true, eventName: true, kind: true, durationMinutes: true, location: true },
     });
     if (!eventType) {
       return NextResponse.json({ error: "Event type not found." }, { status: 404 });
@@ -260,6 +261,13 @@ export async function POST(
 
     const endsAt = new Date(startsAt);
     endsAt.setMinutes(endsAt.getMinutes() + Math.max(15, eventType.durationMinutes));
+    const meetingLink = await generateMeetingLinkForHost(host.id, host.wid, eventType.location, {
+      summary: eventType.eventName,
+      description: `Booked by ${guestNameNorm} (${guestEmailNorm})`,
+      startsAt,
+      endsAt,
+      attendees: [guestEmailNorm],
+    });
 
     try {
       const booking = await prisma.$transaction(
@@ -296,6 +304,7 @@ export async function POST(
               eventTypeId: eventType.id,
               guestName: guestNameNorm,
               guestEmail: guestEmailNorm,
+              meetingLink,
               guestCountryCode: guestCountryCodeNorm,
               guestPhone: guestPhoneNorm,
               guestNotes: body.notes?.trim() || null,
@@ -303,7 +312,7 @@ export async function POST(
               endsAt,
               status: "UPCOMING",
             },
-            select: { id: true },
+            select: { id: true, meetingLink: true },
           });
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -338,6 +347,7 @@ export async function POST(
         {
           ok: true as const,
           bookingId: booking.id,
+          meetingLink: booking.meetingLink,
           note: body.notes?.trim() || null,
         },
         { status: 201 },

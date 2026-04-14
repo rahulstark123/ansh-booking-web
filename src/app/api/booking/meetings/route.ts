@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { formatMeetingListTime } from "@/lib/format-meeting-list-time";
+import { generateMeetingLinkForHost } from "@/lib/google-meet";
 import type { MeetingStatus, ScheduledMeeting } from "@/lib/meetings-data";
 import { getPrisma } from "@/lib/prisma";
 
@@ -118,6 +119,7 @@ export async function GET(req: NextRequest) {
         guest: m.guestName,
         time: formatMeetingListTime(m.startsAt, now),
         status: statusToUi(m.status),
+        meetingLink: m.meetingLink,
       }));
       return NextResponse.json({
         items,
@@ -259,6 +261,21 @@ export async function POST(req: NextRequest) {
     }
     if (wid == null) wid = await nextWorkspaceId(prisma);
 
+    const eventTypeLocation = body.eventTypeId
+      ? (
+          await prisma.bookingEventType.findUnique({
+            where: { id: body.eventTypeId },
+            select: { location: true },
+          })
+        )?.location ?? "google-meet"
+      : "google-meet";
+    const generatedMeetingLink = await generateMeetingLinkForHost(authUser.id, wid, eventTypeLocation, {
+      summary: body.title.trim(),
+      description: body.eventTypeLabel.trim(),
+      startsAt,
+      endsAt: endsAt ?? new Date(startsAt.getTime() + 60 * 60 * 1000),
+    });
+
     const created = await prisma.scheduledMeeting.create({
       data: {
         hostId: authUser.id,
@@ -267,11 +284,12 @@ export async function POST(req: NextRequest) {
         title: body.title.trim(),
         eventTypeLabel: body.eventTypeLabel.trim(),
         guestName: body.guestName.trim(),
+        meetingLink: generatedMeetingLink,
         startsAt,
         endsAt,
         status,
       },
-      select: { id: true },
+      select: { id: true, meetingLink: true },
     });
 
     return NextResponse.json(created, { status: 201 });

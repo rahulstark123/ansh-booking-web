@@ -68,6 +68,16 @@ export default function MeetingsPage() {
                   </div>
 
                   <div className="flex items-center gap-4">
+                  {meeting.meetingLink && (
+                    <a
+                      href={meeting.meetingLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hidden rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 sm:inline-flex"
+                    >
+                      Open link
+                    </a>
+                  )}
                     <div className="hidden items-center gap-1 text-xs text-zinc-500 sm:flex">
                       <CalendarDaysIcon className="h-4 w-4" />
                       {meeting.time}

@@ -129,6 +129,7 @@ export async function GET(request: NextRequest) {
       guest: `${b.guestName} <${b.guestEmail}>`,
       time: formatMeetingListTime(b.startsAt, now),
       status: statusToUi(b.status),
+      meetingLink: b.meetingLink,
     }));
 
     return NextResponse.json({

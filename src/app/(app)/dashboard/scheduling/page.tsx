@@ -179,6 +179,18 @@ export default function SchedulingPage() {
     }
   }
 
+  function handleOpenMeetingLink(meetingLink: string | null | undefined) {
+    if (!meetingLink) {
+      showToast({
+        kind: "info",
+        title: "No meeting link yet",
+        message: "This row does not have an auto-generated meeting link.",
+      });
+      return;
+    }
+    window.open(meetingLink, "_blank", "noopener,noreferrer");
+  }
+
   function handleOpenMeetingBooking(meetingId: string) {
     const link = bookingLinkForMeeting(meetingId);
     if (!link) return;
@@ -347,6 +359,14 @@ export default function SchedulingPage() {
                         <LinkIcon className="h-3.5 w-3.5" />
                         Copy link
                       </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMeetingLink(meeting.meetingLink)}
+                      className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" />
+                      Open meeting
+                    </button>
                       <div ref={rowMenuOpenFor === meeting.id ? rowMenuRef : null} className="relative">
                         <button
                           type="button"

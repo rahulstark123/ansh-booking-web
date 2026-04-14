@@ -7,6 +7,7 @@ export type ScheduledMeeting = {
   guest: string;
   time: string;
   status: MeetingStatus;
+  meetingLink?: string | null;
 };
 
 export const SCHEDULED_MEETINGS: ScheduledMeeting[] = [
