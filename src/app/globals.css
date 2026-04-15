@@ -259,9 +259,9 @@ html[data-app-mode="dark"] .hover\:text-zinc-900:hover {
 
 /* —— Scroll reveal (used with <Reveal />; respects reduced motion) —— */
 .app-reveal {
-  opacity: 0;
-  transform: translate3d(0, 1.75rem, 0);
-  filter: blur(4px);
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  filter: blur(0);
   transition:
     opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.75s cubic-bezier(0.22, 1, 0.36, 1),
@@ -269,7 +269,13 @@ html[data-app-mode="dark"] .hover\:text-zinc-900:hover {
   transition-delay: var(--reveal-delay, 0ms);
 }
 
-.app-reveal--visible {
+.app-reveal[data-reveal-state="hidden"] {
+  opacity: 0;
+  transform: translate3d(0, 1.75rem, 0);
+  filter: blur(4px);
+}
+
+.app-reveal[data-reveal-state="visible"] {
   opacity: 1;
   transform: translate3d(0, 0, 0);
   filter: blur(0);
@@ -365,7 +371,7 @@ html[data-app-mode="dark"] .hover\:text-zinc-900:hover {
   animation: app-journey-flow 12s linear infinite;
 }
 
-.app-reveal--visible .app-journey-line {
+.app-reveal[data-reveal-state="visible"] .app-journey-line {
   transform: scaleX(1);
 }
 
