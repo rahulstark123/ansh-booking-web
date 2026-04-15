@@ -6,15 +6,29 @@ import { applyAppThemeToDocument, useAppThemeStore } from "@/stores/app-theme-st
 
 export function AppThemeProvider({ children }: { children: ReactNode }) {
   const themeId = useAppThemeStore((s) => s.themeId);
+  const mode = useAppThemeStore((s) => s.mode);
+  const fontFamily = useAppThemeStore((s) => s.fontFamily);
 
   useLayoutEffect(() => {
-    applyAppThemeToDocument(themeId);
-  }, [themeId]);
+    applyAppThemeToDocument(themeId, mode, fontFamily);
+  }, [fontFamily, mode, themeId]);
 
   useLayoutEffect(() => {
     return useAppThemeStore.persist.onFinishHydration(() => {
-      applyAppThemeToDocument(useAppThemeStore.getState().themeId);
+      const state = useAppThemeStore.getState();
+      applyAppThemeToDocument(state.themeId, state.mode, state.fontFamily);
     });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const state = useAppThemeStore.getState();
+      applyAppThemeToDocument(state.themeId, state.mode, state.fontFamily);
+    };
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
   }, []);
 
   return children;

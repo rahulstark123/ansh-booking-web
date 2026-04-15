@@ -270,3 +270,124 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+type UpdateEventTypeBody = {
+  id?: string;
+  title?: string;
+};
+
+/**
+ * PATCH — update host event type title (shown in Scheduling table).
+ * Body: { id: string, title: string }
+ */
+export async function PATCH(req: NextRequest) {
+  const token = bearerToken(req);
+  if (!token) {
+    return NextResponse.json({ error: "Missing or invalid Authorization header." }, { status: 401 });
+  }
+
+  const cfg = supabaseUrlAndAnonKey();
+  if (!cfg) {
+    return NextResponse.json({ error: "Supabase is not configured on the server." }, { status: 503 });
+  }
+
+  const supabase = createClient(cfg.url, cfg.anonKey);
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+  if (authError || !authUser?.id) {
+    return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
+  }
+
+  let body: UpdateEventTypeBody;
+  try {
+    body = (await req.json()) as UpdateEventTypeBody;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const id = body.id?.trim() ?? "";
+  const title = body.title?.trim() ?? "";
+  if (!id || !title) {
+    return NextResponse.json({ error: "id and title are required." }, { status: 400 });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    return NextResponse.json({ error: "Database is not configured." }, { status: 503 });
+  }
+
+  try {
+    const wid =
+      (await prisma.userProfile.findUnique({ where: { id: authUser.id }, select: { wid: true } }))?.wid ??
+      workspaceIdFromMeta(authUser.user_metadata) ??
+      (await nextWorkspaceId(prisma));
+
+    const updated = await prisma.bookingEventType.updateMany({
+      where: { id, hostId: authUser.id, wid, isActive: true },
+      data: { eventName: title },
+    });
+    if (updated.count === 0) {
+      return NextResponse.json({ error: "Event not found." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true as const });
+  } catch (e) {
+    console.error("[api/booking/meetings][PATCH]", e);
+    return NextResponse.json({ error: "Failed to update event." }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE — soft delete host event type from Scheduling table.
+ * Query: ?id=<eventTypeId>
+ */
+export async function DELETE(req: NextRequest) {
+  const token = bearerToken(req);
+  if (!token) {
+    return NextResponse.json({ error: "Missing or invalid Authorization header." }, { status: 401 });
+  }
+
+  const cfg = supabaseUrlAndAnonKey();
+  if (!cfg) {
+    return NextResponse.json({ error: "Supabase is not configured on the server." }, { status: 503 });
+  }
+
+  const id = req.nextUrl.searchParams.get("id")?.trim() ?? "";
+  if (!id) {
+    return NextResponse.json({ error: "id is required." }, { status: 400 });
+  }
+
+  const supabase = createClient(cfg.url, cfg.anonKey);
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+  if (authError || !authUser?.id) {
+    return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    return NextResponse.json({ error: "Database is not configured." }, { status: 503 });
+  }
+
+  try {
+    const wid =
+      (await prisma.userProfile.findUnique({ where: { id: authUser.id }, select: { wid: true } }))?.wid ??
+      workspaceIdFromMeta(authUser.user_metadata) ??
+      (await nextWorkspaceId(prisma));
+
+    const deleted = await prisma.bookingEventType.updateMany({
+      where: { id, hostId: authUser.id, wid, isActive: true },
+      data: { isActive: false },
+    });
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: "Event not found." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true as const });
+  } catch (e) {
+    console.error("[api/booking/meetings][DELETE]", e);
+    return NextResponse.json({ error: "Failed to delete event." }, { status: 500 });
+  }
+}

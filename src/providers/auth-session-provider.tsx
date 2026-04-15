@@ -36,9 +36,13 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     let unsubscribe: (() => void) | undefined;
+    let onFocus: (() => void) | undefined;
+    let onVisibilityChange: (() => void) | undefined;
 
-    async function bootstrap() {
-      setLoading(true);
+    async function syncFromSession(showLoading: boolean) {
+      if (showLoading) {
+        setLoading(true);
+      }
       try {
         const client = await withTimeout(getSupabaseBrowserClient(), AUTH_TIMEOUT_MS);
         if (!client) {
@@ -69,6 +73,17 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           if (active) setUser(authUserFromSession(sessionUser));
           if (active) setLoading(false);
         }
+      } catch {
+        // Avoid infinite spinner when browser resumes from long sleep/background throttling.
+        if (active) setLoading(false);
+      }
+    }
+
+    async function bootstrap() {
+      await syncFromSession(true);
+      try {
+        const client = await withTimeout(getSupabaseBrowserClient(), AUTH_TIMEOUT_MS);
+        if (!client) return;
 
         const { data: listener } = client.auth.onAuthStateChange(async (event, session) => {
           const sessionUser = session?.user;
@@ -81,7 +96,6 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           }
 
           const quiet = event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED";
-
           if (!quiet) {
             setLoading(true);
           }
@@ -98,24 +112,34 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           } catch {
             setUser(authUserFromSession(sessionUser));
           } finally {
-            if (!quiet) {
-              setLoading(false);
-            }
+            if (active) setLoading(false);
           }
         });
-
         unsubscribe = () => listener.subscription.unsubscribe();
+
+        // Re-sync when user returns to tab so stale/slept sessions recover quickly.
+        onFocus = () => {
+          void syncFromSession(false);
+        };
+        onVisibilityChange = () => {
+          if (document.visibilityState === "visible") {
+            void syncFromSession(false);
+          }
+        };
+        window.addEventListener("focus", onFocus);
+        document.addEventListener("visibilitychange", onVisibilityChange);
       } catch {
-        // Avoid infinite spinner when browser resumes from long sleep/background throttling.
         if (active) setLoading(false);
       }
     }
 
-    bootstrap();
+    void bootstrap();
 
     return () => {
       active = false;
       unsubscribe?.();
+      if (onFocus) window.removeEventListener("focus", onFocus);
+      if (onVisibilityChange) document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [clearUser, queryClient, setLoading, setUser]);
 

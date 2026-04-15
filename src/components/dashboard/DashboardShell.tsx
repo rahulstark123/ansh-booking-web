@@ -7,7 +7,7 @@ import { DashboardTopBar } from "./DashboardTopBar";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-zinc-50 text-zinc-900 antialiased">
+    <div className="flex h-[100dvh] overflow-hidden bg-[var(--background)] text-zinc-900 antialiased">
       <DashboardSidebar />
       <div className="flex h-[100dvh] min-w-0 flex-1 flex-col">
         <DashboardTopBar />

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   CalendarIcon,
   ChevronLeftIcon,
@@ -11,13 +11,14 @@ import {
   Cog6ToothIcon,
   IdentificationIcon,
   LinkIcon,
+  PaintBrushIcon,
   PlusIcon,
   PuzzlePieceIcon,
   Squares2X2Icon,
 } from "@heroicons/react/24/outline";
 
+import { AppearanceModal } from "@/components/dashboard/AppearanceModal";
 import { NewBookingEventTypeDialog } from "@/components/dashboard/NewBookingEventTypeDialog";
-import { SidebarThemePicker } from "@/components/dashboard/SidebarThemePicker";
 import { useDashboardUiStore } from "@/stores/dashboard-ui-store";
 
 const NAV_MAIN = [
@@ -39,6 +40,7 @@ function navActive(pathname: string, href: string) {
 export function DashboardSidebar() {
   const pathname = usePathname();
   const newBookingButtonRef = useRef<HTMLButtonElement>(null);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const collapsed = useDashboardUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useDashboardUiStore((s) => s.toggleSidebar);
   const openNewBookingModal = useDashboardUiStore((s) => s.openNewBookingModal);
@@ -56,7 +58,7 @@ export function DashboardSidebar() {
           <Link
             href="/dashboard"
             className={[
-              "flex min-w-0 items-center gap-3 rounded-lg transition-colors hover:bg-zinc-50",
+              "flex min-w-0 items-center gap-3 rounded-lg transition-colors hover:bg-[var(--app-row-hover)]",
               collapsed ? "justify-center p-2" : "flex-1 px-2 py-1.5",
             ].join(" ")}
             title="ANSH Bookings"
@@ -75,7 +77,7 @@ export function DashboardSidebar() {
           <button
             type="button"
             onClick={toggleSidebar}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-[var(--app-row-hover)] hover:text-zinc-700"
             aria-expanded={!collapsed}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -119,7 +121,7 @@ export function DashboardSidebar() {
                   collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
                   active
                     ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                    : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900",
+                    : "text-zinc-600 hover:bg-[var(--app-row-hover)] hover:text-zinc-900",
                 ].join(" ")}
               >
                 <Icon
@@ -144,7 +146,7 @@ export function DashboardSidebar() {
               collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
               settingsActive
                 ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900",
+                : "text-zinc-600 hover:bg-[var(--app-row-hover)] hover:text-zinc-900",
             ].join(" ")}
           >
             <Cog6ToothIcon
@@ -156,11 +158,22 @@ export function DashboardSidebar() {
             />
             {!collapsed && <span>Settings</span>}
           </Link>
-          <div className="mt-3">
-            <SidebarThemePicker collapsed={collapsed} />
-          </div>
+          <button
+            type="button"
+            onClick={() => setAppearanceOpen(true)}
+            title={collapsed ? "Appearance" : undefined}
+            className={[
+              "mt-2 flex w-full items-center rounded-lg text-[13px] font-medium transition-colors",
+              collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
+              "text-zinc-600 hover:bg-[var(--app-row-hover)] hover:text-zinc-900",
+            ].join(" ")}
+          >
+            <PaintBrushIcon className="h-[17px] w-[17px] shrink-0 text-zinc-400" aria-hidden />
+            {!collapsed && <span>Appearance</span>}
+          </button>
         </div>
       </aside>
+      <AppearanceModal open={appearanceOpen} onClose={() => setAppearanceOpen(false)} />
     </>
   );
 }

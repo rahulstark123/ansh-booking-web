@@ -75,3 +75,38 @@ export async function createScheduledMeeting(
   }
   return (await res.json()) as { id: string };
 }
+
+export async function updateScheduledEventTitle(
+  accessToken: string,
+  payload: { id: string; title: string },
+): Promise<{ ok: true }> {
+  const res = await fetch("/api/booking/meetings", {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to update event");
+  }
+  return (await res.json()) as { ok: true };
+}
+
+export async function deleteScheduledEvent(
+  accessToken: string,
+  payload: { id: string },
+): Promise<{ ok: true }> {
+  const query = new URLSearchParams({ id: payload.id });
+  const res = await fetch(`/api/booking/meetings?${query.toString()}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!res.ok) {
+    throw new Error("Failed to delete event");
+  }
+  return (await res.json()) as { ok: true };
+}

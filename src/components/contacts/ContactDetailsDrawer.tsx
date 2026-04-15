@@ -9,6 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 
+import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
 import type { Contact } from "@/lib/contacts-data";
 
 export function ContactDetailsDrawer({
@@ -22,12 +23,7 @@ export function ContactDetailsDrawer({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={onClose}
-        className="fixed inset-0 z-40 bg-zinc-900/20"
-        aria-label="Close contact details"
-      />
+      <DrawerBackdrop onClick={onClose} aria-label="Close contact details" />
       <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md border-l border-zinc-200 bg-white p-5 shadow-2xl">
         <div className="mb-4 flex items-start justify-between">
           <div>

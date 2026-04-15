@@ -17,7 +17,7 @@ export function DashboardTopBar() {
   const planTag = user?.plan ?? "FREE";
 
   return (
-    <header className="sticky top-0 z-30 flex shrink-0 items-center gap-4 border-b border-zinc-200/80 bg-white/95 px-5 py-3 backdrop-blur">
+    <header className="sticky top-0 z-30 flex shrink-0 items-center gap-4 border-b border-zinc-200/80 bg-[color:var(--background)]/95 px-5 py-3 backdrop-blur">
       <div className="relative mx-auto flex w-full max-w-2xl flex-1">
         <MagnifyingGlassIcon
           className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400"
@@ -47,7 +47,7 @@ export function DashboardTopBar() {
         </span>
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-[var(--app-row-hover)] hover:text-zinc-800"
           aria-label="Notifications"
         >
           <BellIcon className="h-[17px] w-[17px]" aria-hidden />
@@ -79,7 +79,7 @@ export function DashboardTopBar() {
               clearUser();
               router.push("/login");
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-rose-600 transition hover:bg-rose-50 hover:text-rose-700"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-rose-600 transition hover:bg-[var(--app-row-hover)] hover:text-rose-500"
             aria-label="Sign out"
           >
             <ArrowRightStartOnRectangleIcon className="h-[17px] w-[17px]" aria-hidden />

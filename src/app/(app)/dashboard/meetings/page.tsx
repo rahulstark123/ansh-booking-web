@@ -56,42 +56,44 @@ export default function MeetingsPage() {
           <>
             <ul className="divide-y divide-zinc-100">
               {meetings.map((meeting) => (
-                <li key={meeting.id} className="flex items-center justify-between gap-4 px-2 py-3">
+                <li key={meeting.id} className="flex items-center justify-between gap-5 px-2 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-zinc-500">
                       <UserCircleIcon className="h-4 w-4 text-zinc-400" />
                       <span>{meeting.guest}</span>
                       <span aria-hidden>-</span>
                       <span>{meeting.eventType}</span>
                     </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <div className="inline-flex items-center gap-1 text-xs text-zinc-500">
+                        <CalendarDaysIcon className="h-4 w-4" />
+                        {meeting.time}
+                      </div>
+                      <span
+                        className={[
+                          "rounded-md px-2 py-[3px] text-xs font-medium",
+                          meeting.status === "Upcoming"
+                            ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                            : "bg-zinc-100 text-zinc-600",
+                        ].join(" ")}
+                      >
+                        {meeting.status}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                   {meeting.meetingLink && (
                     <a
                       href={meeting.meetingLink}
                       target="_blank"
                       rel="noreferrer"
-                      className="hidden rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 sm:inline-flex"
+                      className="hidden rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-[var(--app-row-hover)] sm:inline-flex"
                     >
                       Open link
                     </a>
                   )}
-                    <div className="hidden items-center gap-1 text-xs text-zinc-500 sm:flex">
-                      <CalendarDaysIcon className="h-4 w-4" />
-                      {meeting.time}
-                    </div>
-                    <span
-                      className={[
-                        "rounded-md px-2 py-1 text-xs font-medium",
-                        meeting.status === "Upcoming"
-                          ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                          : "bg-zinc-100 text-zinc-600",
-                      ].join(" ")}
-                    >
-                      {meeting.status}
-                    </span>
                   </div>
                 </li>
               ))}

@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
-import { schedulingTypeIdToBookingKind } from "@/lib/booking-kind";
-import type { CreateBookingEventTypeInput } from "@/lib/booking-event-types-api";
+import { bookingKindToSchedulingTypeId, schedulingTypeIdToBookingKind } from "@/lib/booking-kind";
+import type { BookingEventTypeDetail, CreateBookingEventTypeInput } from "@/lib/booking-event-types-api";
 import { getPrisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -234,5 +234,195 @@ export async function POST(req: NextRequest) {
       },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * GET — load one event type by id for edit sidebar.
+ * Query: ?id=<eventTypeId>
+ */
+export async function GET(req: NextRequest) {
+  const token = bearerToken(req);
+  if (!token) {
+    return NextResponse.json({ error: "Missing or invalid Authorization header." }, { status: 401 });
+  }
+  const cfg = supabaseUrlAndAnonKey();
+  if (!cfg) {
+    return NextResponse.json({ error: "Supabase is not configured on the server." }, { status: 503 });
+  }
+  const id = req.nextUrl.searchParams.get("id")?.trim() ?? "";
+  if (!id) {
+    return NextResponse.json({ error: "id is required." }, { status: 400 });
+  }
+
+  const supabase = createClient(cfg.url, cfg.anonKey);
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+  if (authError || !authUser?.id) {
+    return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    return NextResponse.json({ error: "Database is not configured." }, { status: 503 });
+  }
+
+  try {
+    const wid =
+      (await prisma.userProfile.findUnique({ where: { id: authUser.id }, select: { wid: true } }))?.wid ??
+      workspaceIdFromMeta(authUser.user_metadata) ??
+      (await nextWorkspaceId(prisma));
+    const eventType = await prisma.bookingEventType.findFirst({
+      where: { id, hostId: authUser.id, wid, isActive: true },
+      select: {
+        id: true,
+        kind: true,
+        eventName: true,
+        durationMinutes: true,
+        location: true,
+        description: true,
+        availabilityPreset: true,
+        minNotice: true,
+        bufferBeforeMinutes: true,
+        bufferAfterMinutes: true,
+        bookingWindow: true,
+        bookingQuestion: true,
+        weekSlots: {
+          orderBy: { dayKey: "asc" },
+          select: { dayKey: true, enabled: true, startTime: true, endTime: true },
+        },
+      },
+    });
+    if (!eventType) {
+      return NextResponse.json({ error: "Event not found." }, { status: 404 });
+    }
+    const payload: BookingEventTypeDetail = {
+      id: eventType.id,
+      kind: bookingKindToSchedulingTypeId(eventType.kind),
+      eventName: eventType.eventName,
+      durationMinutes: eventType.durationMinutes,
+      location: eventType.location,
+      description: eventType.description ?? "",
+      availabilityPreset: eventType.availabilityPreset,
+      minNotice: eventType.minNotice,
+      bufferBeforeMinutes: eventType.bufferBeforeMinutes,
+      bufferAfterMinutes: eventType.bufferAfterMinutes,
+      bookingWindow: eventType.bookingWindow,
+      bookingQuestion: eventType.bookingQuestion ?? "",
+      weekSlots: eventType.weekSlots,
+    };
+    return NextResponse.json(payload);
+  } catch (e) {
+    console.error("[api/booking/event-types][GET]", e);
+    return NextResponse.json({ error: "Failed to load event type." }, { status: 500 });
+  }
+}
+
+type UpdateBookingEventTypeInput = CreateBookingEventTypeInput & { id: string };
+
+function parseUpdatePayload(input: unknown): UpdateBookingEventTypeInput | null {
+  if (!input || typeof input !== "object") return null;
+  const b = input as Record<string, unknown>;
+  if (typeof b.id !== "string" || !b.id.trim()) return null;
+  const base = parsePayload(input);
+  if (!base) return null;
+  return { id: b.id.trim(), ...base };
+}
+
+/**
+ * PATCH — update one event type from edit sidebar.
+ */
+export async function PATCH(req: NextRequest) {
+  const token = bearerToken(req);
+  if (!token) {
+    return NextResponse.json({ error: "Missing or invalid Authorization header." }, { status: 401 });
+  }
+  const cfg = supabaseUrlAndAnonKey();
+  if (!cfg) {
+    return NextResponse.json({ error: "Supabase is not configured on the server." }, { status: 503 });
+  }
+
+  const supabase = createClient(cfg.url, cfg.anonKey);
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+  if (authError || !authUser?.id) {
+    return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
+  }
+
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+  const payload = parseUpdatePayload(raw);
+  if (!payload) {
+    return NextResponse.json({ error: "Invalid event payload." }, { status: 400 });
+  }
+
+  if (!Number.isFinite(payload.durationMinutes) || payload.durationMinutes <= 0) {
+    return NextResponse.json({ error: "durationMinutes must be a positive number." }, { status: 400 });
+  }
+  if (!Number.isFinite(payload.bufferBeforeMinutes) || payload.bufferBeforeMinutes < 0) {
+    return NextResponse.json({ error: "bufferBeforeMinutes must be >= 0." }, { status: 400 });
+  }
+  if (!Number.isFinite(payload.bufferAfterMinutes) || payload.bufferAfterMinutes < 0) {
+    return NextResponse.json({ error: "bufferAfterMinutes must be >= 0." }, { status: 400 });
+  }
+
+  const prisma = getPrisma();
+  if (!prisma) {
+    return NextResponse.json({ error: "Database is not configured." }, { status: 503 });
+  }
+
+  try {
+    const wid =
+      (await prisma.userProfile.findUnique({ where: { id: authUser.id }, select: { wid: true } }))?.wid ??
+      workspaceIdFromMeta(authUser.user_metadata) ??
+      (await nextWorkspaceId(prisma));
+
+    const existing = await prisma.bookingEventType.findFirst({
+      where: { id: payload.id, hostId: authUser.id, wid, isActive: true },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Event not found." }, { status: 404 });
+    }
+
+    await prisma.$transaction([
+      prisma.bookingWeekSlot.deleteMany({ where: { eventTypeId: payload.id } }),
+      prisma.bookingEventType.update({
+        where: { id: payload.id },
+        data: {
+          kind: schedulingTypeIdToBookingKind(payload.kind),
+          eventName: payload.eventName,
+          durationMinutes: Math.trunc(payload.durationMinutes),
+          location: payload.location,
+          description: payload.description?.trim() || null,
+          availabilityPreset: payload.availabilityPreset,
+          minNotice: payload.minNotice,
+          bufferBeforeMinutes: Math.trunc(payload.bufferBeforeMinutes),
+          bufferAfterMinutes: Math.trunc(payload.bufferAfterMinutes),
+          bookingWindow: payload.bookingWindow,
+          bookingQuestion: payload.bookingQuestion?.trim() || null,
+          weekSlots: {
+            create: payload.weekSlots.map((slot) => ({
+              dayKey: slot.dayKey,
+              enabled: slot.enabled,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+            })),
+          },
+        },
+      }),
+    ]);
+    return NextResponse.json({ ok: true as const });
+  } catch (e) {
+    console.error("[api/booking/event-types][PATCH]", e);
+    return NextResponse.json({ error: "Failed to update event type." }, { status: 500 });
   }
 }

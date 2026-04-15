@@ -4,6 +4,7 @@
 :root {
   --background: #f7f9ff;
   --foreground: #0c1733;
+  --app-font-family: Inter, "Segoe UI", Arial, sans-serif;
 
   /* App accent (dashboard + auth); overridden by AppThemeProvider — Ocean default */
   --app-primary: #0d9488;
@@ -54,7 +55,73 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family);
+}
+
+html[data-app-mode="dark"] {
+  --background: #0b1220;
+  --foreground: #e5ecfa;
+}
+
+html[data-app-mode="dark"] body {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(31, 58, 103, 0.18), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(137, 80, 27, 0.12), transparent 44%),
+    var(--background);
+}
+
+html[data-app-mode="dark"] .bg-white {
+  background-color: #111a2e !important;
+}
+
+html[data-app-mode="dark"] .text-zinc-900 {
+  color: #eaf0ff !important;
+}
+
+html[data-app-mode="dark"] .text-zinc-800,
+html[data-app-mode="dark"] .text-zinc-700 {
+  color: #cfdaf2 !important;
+}
+
+html[data-app-mode="dark"] .text-zinc-600,
+html[data-app-mode="dark"] .text-zinc-500 {
+  color: #9db0d4 !important;
+}
+
+html[data-app-mode="dark"] .border-zinc-200,
+html[data-app-mode="dark"] .border-zinc-100,
+html[data-app-mode="dark"] .border-zinc-300 {
+  border-color: #2a3752 !important;
+}
+
+html[data-app-mode="dark"] .bg-zinc-50,
+html[data-app-mode="dark"] .bg-zinc-100 {
+  background-color: #1a2740 !important;
+}
+
+/* Dark-mode hover harmonization for existing utility classes used across app */
+html[data-app-mode="dark"] .hover\:bg-zinc-50:hover,
+html[data-app-mode="dark"] .hover\:bg-zinc-100:hover {
+  background-color: var(--app-row-hover) !important;
+}
+
+html[data-app-mode="dark"] .hover\:text-zinc-900:hover {
+  color: #eaf0ff !important;
+}
+
+/* Global focus visibility: clear cursor/focus location for keyboard + accessibility */
+:where(
+    a,
+    button,
+    input,
+    textarea,
+    select,
+    [role="button"],
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+  outline: 2px solid var(--app-focus-border);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--app-ring);
 }
 
 /* —— App-wide typography & layout (use these for consistent sections) —— */

@@ -19,9 +19,17 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useScheduledMeetings } from "@/hooks/use-scheduled-meetings";
-import { createBookingEventType } from "@/lib/booking-event-types-api";
+import type { ScheduledMeeting } from "@/lib/meetings-data";
+import {
+  createBookingEventType,
+  fetchBookingEventType,
+  updateBookingEventType,
+} from "@/lib/booking-event-types-api";
+import { deleteScheduledEvent } from "@/lib/meetings-api";
 import { queryKeys } from "@/lib/query-keys";
 import { SCHEDULING_EVENT_TYPES, type SchedulingEventTypeId } from "@/lib/scheduling-event-types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -63,7 +71,11 @@ export default function SchedulingPage() {
   const setSelected = useDashboardUiStore((s) => s.setLastEventTypeChoice);
   const [createOpen, setCreateOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [setupMode, setSetupMode] = useState<"create" | "edit">("create");
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [loadingEditEvent, setLoadingEditEvent] = useState(false);
   const [rowMenuOpenFor, setRowMenuOpenFor] = useState<string | null>(null);
+  const [detailMeeting, setDetailMeeting] = useState<ScheduledMeeting | null>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
   const rowMenuRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
@@ -82,8 +94,13 @@ export default function SchedulingPage() {
     DEFAULT_WORKING_HOURS.map((d) => ({ ...d })),
   );
   const [savingEvent, setSavingEvent] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState(false);
+  const [pendingDeleteMeeting, setPendingDeleteMeeting] = useState<ScheduledMeeting | null>(null);
 
   function chooseType(id: SchedulingEventTypeId) {
+    setSetupMode("create");
+    setEditingEventId(null);
     setSelected(id);
     const type = SCHEDULING_EVENT_TYPES.find((x) => x.id === id);
     setForm((prev) => ({
@@ -129,7 +146,7 @@ export default function SchedulingPage() {
       }
 
       const sourceHours = form.availability === "custom" ? customHours : DEFAULT_WORKING_HOURS;
-      await createBookingEventType(data.session.access_token, {
+      const payload = {
         kind: selectedType.id,
         eventName: form.eventName.trim(),
         durationMinutes,
@@ -147,19 +164,77 @@ export default function SchedulingPage() {
           startTime: h.start,
           endTime: h.end,
         })),
-      });
+      };
+      if (setupMode === "edit" && editingEventId) {
+        await updateBookingEventType(data.session.access_token, {
+          ...payload,
+          id: editingEventId,
+          description: form.description.trim(),
+          bookingQuestion: form.bookingQuestion.trim(),
+        });
+      } else {
+        await createBookingEventType(data.session.access_token, payload);
+      }
 
       await queryClient.invalidateQueries({
         queryKey: queryKeys.meetings.root,
       });
       setPage(1);
-      showToast({ kind: "success", title: "Event saved", message: "Your booking event type is ready." });
+      showToast({
+        kind: "success",
+        title: setupMode === "edit" ? `"${form.eventName.trim()}" updated` : "Event saved",
+        message:
+          setupMode === "edit"
+            ? "Event details have been updated."
+            : "Your booking event type is ready.",
+      });
       setSetupOpen(false);
     } catch {
-      showToast({ kind: "error", title: "Save failed", message: "Could not save event type. Try again." });
+      showToast({
+        kind: "error",
+        title: setupMode === "edit" ? "Update failed" : "Save failed",
+        message: "Could not save event type. Try again.",
+      });
     } finally {
       setSavingEvent(false);
     }
+  }
+
+  async function openEditDrawerForMeeting(meeting: ScheduledMeeting) {
+    const eventId = meeting.id.startsWith("evt-") ? meeting.id.slice(4) : meeting.id;
+    setLoadingEditEvent(true);
+    let detail: Awaited<ReturnType<typeof fetchBookingEventType>> | null = null;
+    try {
+      detail = await withAccessToken((accessToken) => fetchBookingEventType(accessToken, eventId));
+    } finally {
+      setLoadingEditEvent(false);
+    }
+    if (!detail) return;
+    setSetupMode("edit");
+    setEditingEventId(detail.id);
+    setSelected(detail.kind);
+    setForm({
+      eventName: detail.eventName,
+      duration: String(detail.durationMinutes),
+      location: detail.location,
+      description: detail.description ?? "",
+      availability: detail.availabilityPreset,
+      minNotice: detail.minNotice,
+      bufferBefore: String(detail.bufferBeforeMinutes),
+      bufferAfter: String(detail.bufferAfterMinutes),
+      bookingWindow: detail.bookingWindow,
+      bookingQuestion: detail.bookingQuestion ?? "",
+    });
+    setCustomHours(
+      DEFAULT_WORKING_HOURS.map((defaultRow) => {
+        const match = detail.weekSlots.find((slot) => slot.dayKey === defaultRow.day);
+        return match
+          ? { day: defaultRow.day, enabled: match.enabled, start: match.startTime, end: match.endTime }
+          : { ...defaultRow };
+      }),
+    );
+    setDetailMeeting(null);
+    setSetupOpen(true);
   }
 
   function bookingLinkForMeeting(meetingId: string): string {
@@ -198,17 +273,63 @@ export default function SchedulingPage() {
     window.open(link, "_blank", "noopener,noreferrer");
   }
 
-  function handleRowAction(action: "edit" | "delete" | "toggle", meetingTitle: string) {
-    const labels = {
-      edit: "Edit",
-      delete: "Delete",
-      toggle: "On/Off",
-    } as const;
-    showToast({
-      kind: "info",
-      title: `${labels[action]} coming soon`,
-      message: `${labels[action]} action for "${meetingTitle}" will be wired next.`,
-    });
+  async function withAccessToken<T>(fn: (accessToken: string) => Promise<T>): Promise<T | null> {
+    const client = await getSupabaseBrowserClient();
+    if (!client) {
+      showToast({ kind: "error", title: "Configuration error", message: "Supabase is not configured." });
+      return null;
+    }
+    const { data, error } = await client.auth.getSession();
+    if (error || !data.session?.access_token) {
+      showToast({ kind: "error", title: "Session expired", message: "Please sign in again." });
+      return null;
+    }
+    return fn(data.session.access_token);
+  }
+
+  async function handleRowAction(action: "edit" | "delete" | "toggle", meeting: ScheduledMeeting) {
+    const eventId = meeting.id.startsWith("evt-") ? meeting.id.slice(4) : meeting.id;
+    if (action === "toggle") {
+      showToast({
+        kind: "info",
+        title: "On / Off coming soon",
+        message: `On / Off action for "${meeting.title}" will be wired next.`,
+      });
+      return;
+    }
+
+    if (action === "edit") {
+      await openEditDrawerForMeeting(meeting);
+      return;
+    }
+
+    setPendingDeleteMeeting(meeting);
+    setDeleteDialogOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    if (!pendingDeleteMeeting) return;
+    const eventId = pendingDeleteMeeting.id.startsWith("evt-")
+      ? pendingDeleteMeeting.id.slice(4)
+      : pendingDeleteMeeting.id;
+    setDeletingEvent(true);
+    try {
+      const ok = await withAccessToken((accessToken) => deleteScheduledEvent(accessToken, { id: eventId }));
+      if (!ok) return;
+      await queryClient.invalidateQueries({ queryKey: queryKeys.meetings.root });
+      showToast({
+        kind: "success",
+        title: `"${pendingDeleteMeeting.title}" deleted`,
+        message: "Event removed from My Events.",
+      });
+      if (detailMeeting?.id === pendingDeleteMeeting.id) {
+        setDetailMeeting(null);
+      }
+      setDeleteDialogOpen(false);
+      setPendingDeleteMeeting(null);
+    } finally {
+      setDeletingEvent(false);
+    }
   }
 
   useEffect(() => {
@@ -334,8 +455,15 @@ export default function SchedulingPage() {
             <>
               <ul className="divide-y divide-zinc-100">
                 {meetings.map((meeting) => (
-                  <li key={meeting.id} className="flex items-start justify-between gap-4 px-2 py-3">
-                    <div className="min-w-0">
+                  <li
+                    key={meeting.id}
+                    className="flex items-start justify-between gap-4 px-2 py-3 transition hover:bg-zinc-50/80"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setDetailMeeting(meeting)}
+                      className="min-w-0 flex-1 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-ring)]"
+                    >
                       <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
                       <p className="text-xs text-zinc-500">
                         {meeting.eventType} - {meeting.guest}
@@ -356,8 +484,8 @@ export default function SchedulingPage() {
                           {meeting.status}
                         </span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
+                    </button>
+                    <div className="flex shrink-0 items-center gap-3">
                       <button
                         type="button"
                         onClick={() => handleCopyMeetingLink(meeting.id)}
@@ -366,14 +494,6 @@ export default function SchedulingPage() {
                         <LinkIcon className="h-3.5 w-3.5" />
                         Copy link
                       </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenMeetingLink(meeting.meetingLink)}
-                      className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                    >
-                      <LinkIcon className="h-3.5 w-3.5" />
-                      Open meeting
-                    </button>
                       <div ref={rowMenuOpenFor === meeting.id ? rowMenuRef : null} className="relative">
                         <button
                           type="button"
@@ -391,18 +511,19 @@ export default function SchedulingPage() {
                               type="button"
                               onClick={() => {
                                 setRowMenuOpenFor(null);
-                                handleRowAction("edit", meeting.title);
+                                void handleRowAction("edit", meeting);
                               }}
+                              disabled={loadingEditEvent}
                               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
                             >
                               <PencilSquareIcon className="h-4 w-4" />
-                              Edit
+                              {loadingEditEvent ? "Loading..." : "Edit"}
                             </button>
                             <button
                               type="button"
                               onClick={() => {
                                 setRowMenuOpenFor(null);
-                                handleRowAction("delete", meeting.title);
+                                void handleRowAction("delete", meeting);
                               }}
                               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
                             >
@@ -424,7 +545,7 @@ export default function SchedulingPage() {
                               type="button"
                               onClick={() => {
                                 setRowMenuOpenFor(null);
-                                handleRowAction("toggle", meeting.title);
+                                void handleRowAction("toggle", meeting);
                               }}
                               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
                             >
@@ -466,19 +587,147 @@ export default function SchedulingPage() {
         </section>
       </div>
 
+      {detailMeeting && (
+        <>
+          <DrawerBackdrop onClick={() => setDetailMeeting(null)} aria-label="Close event details" />
+          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event type</p>
+                <h3 className="text-xl font-semibold tracking-tight text-zinc-900">{detailMeeting.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailMeeting(null)}
+                className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                aria-label="Close details"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Summary</p>
+                <p className="mt-1 text-zinc-700">
+                  {detailMeeting.eventType} · {detailMeeting.guest}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-xs text-zinc-600">
+                    <CalendarDaysIcon className="h-4 w-4" />
+                    {detailMeeting.time}
+                  </span>
+                  <span
+                    className={[
+                      "rounded-md px-2 py-1 text-xs font-medium",
+                      detailMeeting.status === "Upcoming"
+                        ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                        : "bg-zinc-100 text-zinc-600",
+                    ].join(" ")}
+                  >
+                    {detailMeeting.status}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-zinc-500">Event ID: {detailMeeting.id.replace(/^evt-/, "")}</p>
+              </div>
+
+              <div className="rounded-lg border border-zinc-200 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Public booking link</p>
+                <p className="mt-1 break-all text-xs text-zinc-600">{bookingLinkForMeeting(detailMeeting.id)}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyMeetingLink(detailMeeting.id)}
+                    className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    <LinkIcon className="h-3.5 w-3.5" />
+                    Copy link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMeetingBooking(detailMeeting.id)}
+                    className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    <LinkIcon className="h-3.5 w-3.5" />
+                    Open booking page
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-zinc-200 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Meeting link</p>
+                {detailMeeting.meetingLink ? (
+                  <>
+                    <p className="mt-1 break-all text-xs text-zinc-600">{detailMeeting.meetingLink}</p>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMeetingLink(detailMeeting.meetingLink)}
+                      className="mt-2 inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" />
+                      Open meeting link
+                    </button>
+                  </>
+                ) : (
+                  <p className="mt-1 text-xs text-zinc-500">No meeting link generated yet for this event.</p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-zinc-200 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Quick actions</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleRowAction("edit", detailMeeting)}
+                    disabled={loadingEditEvent}
+                    className="inline-flex items-center justify-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    <PencilSquareIcon className="h-3.5 w-3.5" />
+                    {loadingEditEvent ? "Loading..." : "Edit"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRowAction("toggle", detailMeeting)}
+                    className="inline-flex items-center justify-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    <PowerIcon className="h-3.5 w-3.5" />
+                    On / Off
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRowAction("delete", detailMeeting)}
+                    className="inline-flex items-center justify-center gap-1 rounded-md border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-50"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleOpenMeetingBooking(detailMeeting.id);
+                    }}
+                    className="inline-flex items-center justify-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    <LinkIcon className="h-3.5 w-3.5" />
+                    Go to booking
+                  </button>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </>
+      )}
+
       {setupOpen && selectedType && (
         <>
-          <button
-            type="button"
-            onClick={() => setSetupOpen(false)}
-            className="fixed inset-0 z-40 bg-zinc-900/25"
-            aria-label="Close event setup"
-          />
+          <DrawerBackdrop onClick={() => setSetupOpen(false)} aria-label="Close event setup" />
           <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{selectedType.title} event</p>
-                <h3 className="text-xl font-semibold tracking-tight text-zinc-900">Set up event type</h3>
+                <h3 className="text-xl font-semibold tracking-tight text-zinc-900">
+                  {setupMode === "edit" ? "Edit event type" : "Set up event type"}
+                </h3>
               </div>
               <button
                 type="button"
@@ -680,12 +929,34 @@ export default function SchedulingPage() {
                 onClick={handleSaveEvent}
                 className="rounded-full bg-[var(--app-primary)] px-4 py-2 text-sm font-medium text-[var(--app-primary-foreground)] transition hover:bg-[var(--app-primary-hover)]"
               >
-                {savingEvent ? "Saving..." : "Save event"}
+                {savingEvent ? "Saving..." : setupMode === "edit" ? "Update event" : "Save event"}
               </button>
             </div>
           </aside>
         </>
       )}
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Delete event?"
+        message={
+          pendingDeleteMeeting
+            ? `Delete "${pendingDeleteMeeting.title}"? This will remove it from My Events.`
+            : "Delete this event?"
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        tone="danger"
+        busy={deletingEvent}
+        onCancel={() => {
+          if (deletingEvent) return;
+          setDeleteDialogOpen(false);
+          setPendingDeleteMeeting(null);
+        }}
+        onConfirm={() => {
+          void handleConfirmDelete();
+        }}
+      />
 
     </>
   );

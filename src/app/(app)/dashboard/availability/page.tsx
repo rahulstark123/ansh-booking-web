@@ -8,6 +8,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
+import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useAvailabilityOverrides } from "@/hooks/use-availability-overrides";
 import { useWeeklyAvailability } from "@/hooks/use-weekly-availability";
@@ -224,12 +225,7 @@ export default function AvailabilityPage() {
 
       {editOpen && (
         <>
-          <button
-            type="button"
-            onClick={() => setEditOpen(false)}
-            className="fixed inset-0 z-40 bg-zinc-900/25"
-            aria-label="Close weekly hours editor"
-          />
+          <DrawerBackdrop onClick={() => setEditOpen(false)} aria-label="Close weekly hours editor" />
           <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
             <div className="mb-4 flex items-start justify-between">
               <div>
@@ -316,12 +312,7 @@ export default function AvailabilityPage() {
 
       {overrideOpen && (
         <>
-          <button
-            type="button"
-            onClick={() => setOverrideOpen(false)}
-            className="fixed inset-0 z-40 bg-zinc-900/25"
-            aria-label="Close override editor"
-          />
+          <DrawerBackdrop onClick={() => setOverrideOpen(false)} aria-label="Close override editor" />
           <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
             <div className="mb-4 flex items-start justify-between">
               <div>

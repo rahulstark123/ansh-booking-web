@@ -143,7 +143,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+    <>
+      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
       <div className="grid min-h-[540px] md:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="border-r border-zinc-200 px-4 py-5">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Account settings</h1>
@@ -467,7 +468,9 @@ export default function SettingsPage() {
           )}
         </section>
       </div>
-    </div>
+      </div>
+
+    </>
   );
 }
 

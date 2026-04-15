@@ -21,6 +21,8 @@ model UserProfile {
   integrations      IntegrationConnection[]
   availabilityHours AvailabilityWeeklyHour[]
   availabilityOverrides AvailabilityOverride[]
+  subscriptions     Subscription[]
+  transactions      Transaction[]
 
   @@map("user_profiles")
 }
@@ -78,6 +80,20 @@ enum ScheduledMeetingStatus {
 
 enum IntegrationProvider {
   GOOGLE
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+enum TransactionStatus {
+  CREATED
+  SUCCESS
+  FAILED
 }
 
 /// Host-created meeting row (dashboard / internal). Public link bookings use `BookedMeeting`.
@@ -226,4 +242,56 @@ model AvailabilityOverride {
   @@index([hostId, wid, date])
   @@index([wid, hostId])
   @@map("availability_overrides")
+}
+
+model Subscription {
+  id                  String             @id @default(uuid()) @db.Uuid
+  hostId              String             @db.Uuid
+  wid                 Int
+  host                UserProfile        @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  plan                Plan
+  status              SubscriptionStatus @default(PENDING)
+  provider            String
+  providerOrderId     String?
+  providerPaymentId   String?
+  currentPeriodStart  DateTime?
+  currentPeriodEnd    DateTime?
+  startedAt           DateTime?
+  cancelledAt         DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  transactions        Transaction[]
+
+  @@index([hostId])
+  @@index([wid, hostId])
+  @@index([hostId, status])
+  @@map("subscriptions")
+}
+
+model Transaction {
+  id                String            @id @default(uuid()) @db.Uuid
+  hostId            String            @db.Uuid
+  wid               Int
+  host              UserProfile       @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  subscriptionId    String?           @db.Uuid
+  subscription      Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  status            TransactionStatus @default(CREATED)
+  provider          String
+  amount            Int
+  currency          String            @default("INR")
+  providerOrderId   String?
+  providerPaymentId String?
+  providerSignature String?
+  description       String?
+  metadata          Json?
+  paidAt            DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([hostId])
+  @@index([wid, hostId])
+  @@index([hostId, status])
+  @@index([providerOrderId])
+  @@map("transactions")
 }

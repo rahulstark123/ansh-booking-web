@@ -4,6 +4,7 @@ import { CameraIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 import PhoneInput from "react-phone-input-2";
 
+import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
 import type { ContactForm } from "@/lib/contacts-data";
 
 export function AddContactDrawer({
@@ -25,12 +26,7 @@ export function AddContactDrawer({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={onClose}
-        className="fixed inset-0 z-40 bg-zinc-900/20"
-        aria-label="Close add contact panel"
-      />
+      <DrawerBackdrop onClick={onClose} aria-label="Close add contact panel" />
       <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
         <div className="mb-5 flex items-start justify-between">
           <h2 className="text-2xl font-semibold text-zinc-900">Add Contact</h2>

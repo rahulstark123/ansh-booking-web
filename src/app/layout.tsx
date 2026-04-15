@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter, Montserrat, Outfit, Roboto } from "next/font/google";
 
 import { AppProviders } from "@/providers/app-providers";
 import "./globals.css";
@@ -11,6 +11,27 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+});
+
+const roboto = Roboto({
+  variable: "--font-roboto",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+});
+
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
 });
 
@@ -27,7 +48,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${outfit.variable} ${roboto.variable} ${montserrat.variable} h-full antialiased`}
     >
       <body className="min-h-screen w-full bg-[var(--background)] antialiased">
         <AppProviders>{children}</AppProviders>
