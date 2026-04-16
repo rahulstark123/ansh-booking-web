@@ -455,9 +455,9 @@ export default function Home() {
             <Link href="/terms" className="transition-colors hover:text-[#374151]">
               Terms & Conditions
             </Link>
-            <a href="#" className="transition-colors hover:text-[#374151]">
-              Security
-            </a>
+            <Link href="/contact" className="transition-colors hover:text-[#374151]">
+              Contact Us
+            </Link>
             <a href="#" className="transition-colors hover:text-[#374151]">
               Status
             </a>
