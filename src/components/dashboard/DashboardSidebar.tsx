@@ -9,6 +9,7 @@ import {
   ChevronRightIcon,
   ClockIcon,
   Cog6ToothIcon,
+  CreditCardIcon,
   IdentificationIcon,
   LinkIcon,
   PaintBrushIcon,
@@ -31,6 +32,7 @@ const NAV_MAIN = [
 ] as const;
 
 const SETTINGS_HREF = "/dashboard/settings" as const;
+const BILLING_HREF = "/dashboard/billing" as const;
 
 function navActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
@@ -44,6 +46,7 @@ export function DashboardSidebar() {
   const collapsed = useDashboardUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useDashboardUiStore((s) => s.toggleSidebar);
   const openNewBookingModal = useDashboardUiStore((s) => s.openNewBookingModal);
+  const billingActive = navActive(pathname, BILLING_HREF);
   const settingsActive = navActive(pathname, SETTINGS_HREF);
 
   return (
@@ -139,10 +142,30 @@ export function DashboardSidebar() {
 
         <div className="mt-auto shrink-0 border-t border-zinc-200 pt-3">
           <Link
+            href={BILLING_HREF}
+            title={collapsed ? "Billing" : undefined}
+            className={[
+              "flex items-center rounded-lg text-[13px] font-medium transition-colors",
+              collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
+              billingActive
+                ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                : "text-zinc-600 hover:bg-[var(--app-row-hover)] hover:text-zinc-900",
+            ].join(" ")}
+          >
+            <CreditCardIcon
+              className={[
+                "h-[17px] w-[17px] shrink-0",
+                billingActive ? "text-[var(--app-primary-muted-icon)]" : "text-zinc-400",
+              ].join(" ")}
+              aria-hidden
+            />
+            {!collapsed && <span>Billing</span>}
+          </Link>
+          <Link
             href={SETTINGS_HREF}
             title={collapsed ? "Settings" : undefined}
             className={[
-              "flex items-center rounded-lg text-[13px] font-medium transition-colors",
+              "mt-1 flex items-center rounded-lg text-[13px] font-medium transition-colors",
               collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
               settingsActive
                 ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"

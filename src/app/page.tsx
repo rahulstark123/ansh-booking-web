@@ -3,6 +3,7 @@ import { PricingSection } from "@/components/landing/PricingSection";
 import { Reveal } from "@/components/Reveal";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WhoCanBookMarquee } from "@/components/WhoCanBookMarquee";
+import Link from "next/link";
 
 function IconCalendar({ className }: { className?: string }) {
   return (
@@ -441,19 +442,19 @@ export default function Home() {
           <div>
             <p className="app-card-title text-[#1e1b4b]">ANSH Bookings</p>
             <p className="app-body app-body--light mt-2 text-base text-[#6b7280]">
-              © 2026 ANSH Bookings. Crafted with Flow.
+              © 2026 ANSH Bookings. Made with ❤️ in India.
             </p>
           </div>
           <nav
             className="app-body flex flex-wrap items-center gap-x-8 gap-y-3 text-[#6b7280]"
             aria-label="Footer"
           >
-            <a href="#" className="transition-colors hover:text-[#374151]">
+            <Link href="/privacy" className="transition-colors hover:text-[#374151]">
               Privacy Policy
-            </a>
-            <a href="#" className="transition-colors hover:text-[#374151]">
-              Terms of Service
-            </a>
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-[#374151]">
+              Terms & Conditions
+            </Link>
             <a href="#" className="transition-colors hover:text-[#374151]">
               Security
             </a>

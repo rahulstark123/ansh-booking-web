@@ -68,20 +68,16 @@ export function SiteHeader() {
         ref={pillRef}
         className="pointer-events-auto mx-auto flex w-full max-w-4xl items-center justify-between gap-3 rounded-full border border-white/70 bg-white/80 py-2.5 pr-2 pl-4 shadow-[0_10px_40px_rgba(7,24,79,0.08)] backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color] duration-300 sm:gap-5 sm:py-3 sm:pl-5 sm:pr-2.5 supports-[backdrop-filter]:bg-white/65 lg:max-w-5xl lg:gap-8 lg:pl-7 lg:pr-3"
       >
-        <a
-          href="#"
+        <Link
+          href="/"
           className="flex min-w-0 shrink-0 items-baseline gap-1.5 text-base font-extrabold tracking-wide sm:text-lg"
-          onClick={(e) => {
-            e.preventDefault();
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
         >
           <span className="text-[#2a38ff]">ANSH</span>
           <span className="font-bold text-[#94a3b8]" aria-hidden>
             ·
           </span>
           <span className="font-semibold text-[#0f172a]">Bookings</span>
-        </a>
+        </Link>
         <nav className="hidden min-w-0 items-center gap-5 text-sm md:flex md:gap-6" aria-label="Primary">
           <a
             href="#features"
