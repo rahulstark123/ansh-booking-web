@@ -58,54 +58,55 @@ body {
   font-family: var(--app-font-family);
 }
 
-html[data-app-mode="dark"] {
+/* Dashboard dark mode only — never override marketing/landing (see MarketingThemeGuard). */
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) {
   --background: #0b1220;
   --foreground: #e5ecfa;
 }
 
-html[data-app-mode="dark"] body {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) body {
   background:
     radial-gradient(circle at 10% 0%, rgba(31, 58, 103, 0.18), transparent 40%),
     radial-gradient(circle at 100% 100%, rgba(137, 80, 27, 0.12), transparent 44%),
     var(--background);
 }
 
-html[data-app-mode="dark"] .bg-white {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .bg-white {
   background-color: #111a2e !important;
 }
 
-html[data-app-mode="dark"] .text-zinc-900 {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-900 {
   color: #eaf0ff !important;
 }
 
-html[data-app-mode="dark"] .text-zinc-800,
-html[data-app-mode="dark"] .text-zinc-700 {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-800,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-700 {
   color: #cfdaf2 !important;
 }
 
-html[data-app-mode="dark"] .text-zinc-600,
-html[data-app-mode="dark"] .text-zinc-500 {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-600,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-500 {
   color: #9db0d4 !important;
 }
 
-html[data-app-mode="dark"] .border-zinc-200,
-html[data-app-mode="dark"] .border-zinc-100,
-html[data-app-mode="dark"] .border-zinc-300 {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .border-zinc-200,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .border-zinc-100,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .border-zinc-300 {
   border-color: #2a3752 !important;
 }
 
-html[data-app-mode="dark"] .bg-zinc-50,
-html[data-app-mode="dark"] .bg-zinc-100 {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .bg-zinc-50,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .bg-zinc-100 {
   background-color: #1a2740 !important;
 }
 
 /* Dark-mode hover harmonization for existing utility classes used across app */
-html[data-app-mode="dark"] .hover\:bg-zinc-50:hover,
-html[data-app-mode="dark"] .hover\:bg-zinc-100:hover {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .hover\:bg-zinc-50:hover,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .hover\:bg-zinc-100:hover {
   background-color: var(--app-row-hover) !important;
 }
 
-html[data-app-mode="dark"] .hover\:text-zinc-900:hover {
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .hover\:text-zinc-900:hover {
   color: #eaf0ff !important;
 }
 

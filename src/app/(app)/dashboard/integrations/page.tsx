@@ -1,10 +1,13 @@
 "use client";
 
 import { CheckCircleIcon, LinkIcon } from "@heroicons/react/24/outline";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { siCashapp, siGmail, siGooglemeet, siZoom } from "simple-icons/icons";
 import { useEffect, useMemo, useState } from "react";
 
+import { queryKeys } from "@/lib/query-keys";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useAuthStore } from "@/stores/auth-store";
 
 type IntegrationKey = "gmail" | "google-meet" | "zoom" | "cashfree";
 
@@ -52,127 +55,112 @@ const INTEGRATIONS: Integration[] = [
   },
 ];
 
+const INTEGRATION_STATUS_STALE_MS = 5 * 60 * 1000;
+
+async function authorizedGetJson(url: string): Promise<Record<string, unknown>> {
+  const client = await getSupabaseBrowserClient();
+  if (!client) throw new Error("no_client");
+  const { data, error } = await client.auth.getSession();
+  if (error || !data.session?.access_token) throw new Error("no_session");
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${data.session.access_token}` },
+  });
+  if (!res.ok) throw new Error(`http_${res.status}`);
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
 export default function IntegrationsPage() {
-  const [googleConnected, setGoogleConnected] = useState(false);
-  const [loadingGoogle, setLoadingGoogle] = useState(true);
-  const [zoomConnected, setZoomConnected] = useState(false);
-  const [zoomOAuthConfigured, setZoomOAuthConfigured] = useState(false);
-  const [loadingZoom, setLoadingZoom] = useState(true);
-  const [cashfreeConfigured, setCashfreeConfigured] = useState(false);
-  const [loadingCashfree, setLoadingCashfree] = useState(true);
-  const [connected, setConnected] = useState<Record<IntegrationKey, boolean>>({
-    gmail: false,
-    "google-meet": false,
-    zoom: false,
-    cashfree: false,
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((s) => s.user?.id) ?? "";
+  const [gmailMockOn, setGmailMockOn] = useState(false);
+
+  const googleQ = useQuery({
+    queryKey: queryKeys.integrations.googleStatus(userId),
+    queryFn: () => authorizedGetJson("/api/integrations/google/status"),
+    enabled: Boolean(userId),
+    staleTime: INTEGRATION_STATUS_STALE_MS,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
-  async function loadGoogleStatus() {
-    setLoadingGoogle(true);
-    try {
-      const client = await getSupabaseBrowserClient();
-      if (!client) return;
-      const { data, error } = await client.auth.getSession();
-      if (error || !data.session?.access_token) return;
-      const res = await fetch("/api/integrations/google/status", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${data.session.access_token}` },
-      });
-      const body = await res.json().catch(() => null);
-      if (res.ok) {
-        setGoogleConnected(Boolean(body?.googleMeetConnected));
-      }
-    } finally {
-      setLoadingGoogle(false);
-    }
-  }
+  const zoomQ = useQuery({
+    queryKey: queryKeys.integrations.zoomStatus(userId),
+    queryFn: () => authorizedGetJson("/api/integrations/zoom/status"),
+    enabled: Boolean(userId),
+    staleTime: INTEGRATION_STATUS_STALE_MS,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 
-  useEffect(() => {
-    loadGoogleStatus();
-  }, []);
+  const cashfreeQ = useQuery({
+    queryKey: queryKeys.integrations.cashfreeStatus(userId),
+    queryFn: () => authorizedGetJson("/api/integrations/cashfree/status"),
+    enabled: Boolean(userId),
+    staleTime: INTEGRATION_STATUS_STALE_MS,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 
-  async function loadZoomStatus() {
-    setLoadingZoom(true);
-    try {
-      const client = await getSupabaseBrowserClient();
-      if (!client) return;
-      const { data, error } = await client.auth.getSession();
-      if (error || !data.session?.access_token) return;
-      const res = await fetch("/api/integrations/zoom/status", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${data.session.access_token}` },
-      });
-      const body = await res.json().catch(() => null);
-      if (res.ok) {
-        setZoomOAuthConfigured(Boolean(body?.zoomOAuthConfigured));
-        setZoomConnected(Boolean(body?.zoomConnected));
-      }
-    } finally {
-      setLoadingZoom(false);
-    }
-  }
+  const googleConnected = Boolean(googleQ.data?.googleMeetConnected);
+  const zoomConnected = Boolean(zoomQ.data?.zoomConnected);
+  const zoomOAuthConfigured = Boolean(zoomQ.data?.zoomOAuthConfigured);
+  const cashfreeConfigured = Boolean(cashfreeQ.data?.cashfreeConfigured);
+  const cashfreeConnected = Boolean(cashfreeQ.data?.cashfreeConnected);
 
-  useEffect(() => {
-    loadZoomStatus();
-  }, []);
+  const loadingGoogle = googleQ.isPending;
+  const loadingZoom = zoomQ.isPending;
+  const loadingCashfree = cashfreeQ.isPending;
+
+  const connected = useMemo(
+    () =>
+      ({
+        gmail: gmailMockOn,
+        "google-meet": googleConnected,
+        zoom: zoomConnected,
+        cashfree: cashfreeConnected,
+      }) satisfies Record<IntegrationKey, boolean>,
+    [gmailMockOn, googleConnected, zoomConnected, cashfreeConnected],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const zoomResult = params.get("zoom");
     if (zoomResult !== "connected" && zoomResult !== "error") return;
-    void loadZoomStatus();
+    void queryClient.invalidateQueries({ queryKey: queryKeys.integrations.root });
+    const reason = params.get("zoom_reason") ?? "";
     const url = new URL(window.location.href);
     url.searchParams.delete("zoom");
+    url.searchParams.delete("zoom_reason");
     const qs = url.searchParams.toString();
     window.history.replaceState({}, "", `${url.pathname}${qs ? `?${qs}` : ""}`);
     if (zoomResult === "error") {
-      window.alert(
-        "Zoom did not finish connecting. If you use localhost: OAuth cookies need to work on http (try again after a dev-server restart). Also confirm Zoom redirect URL, scopes, and that the ZOOM database migration ran.",
-      );
+      const hints: Record<string, string> = {
+        zoom_denied: "Zoom sign-in was cancelled or Zoom returned an error. Try Connect again and choose Allow.",
+        session:
+          "Your browser did not send the OAuth cookies (state/PKCE). Use the exact same URL you started from (localhost vs 127.0.0.1 vs port). Restart dev server, try another browser or disable strict tracking blocking, then Connect again.",
+        no_database:
+          "This server has no database connection (DATABASE_URL / Prisma). Fix env and redeploy.",
+        no_profile:
+          "No row in user_profiles for your account. Open the app once after signup or complete onboarding so your profile exists.",
+        zoom_token:
+          "Zoom rejected the code exchange. Check ZOOM_CLIENT_ID/SECRET, redirect URI in Zoom matches ZOOM_REDIRECT_URI (production) or localhost callback (dev), and scopes are enabled in the Zoom app.",
+        save_failed:
+          "Saving the connection failed. Most often: run `npx prisma migrate deploy` (or migrate dev) so the database has the ZOOM value on IntegrationProvider. Check server logs for the exact Prisma error.",
+      };
+      const detail = hints[reason] ?? hints.save_failed;
+      window.alert(`Zoom did not connect.\n\n${detail}`);
     }
-  }, []);
-
-  async function loadCashfreeStatus() {
-    setLoadingCashfree(true);
-    try {
-      const client = await getSupabaseBrowserClient();
-      if (!client) return;
-      const { data, error } = await client.auth.getSession();
-      if (error || !data.session?.access_token) return;
-      const res = await fetch("/api/integrations/cashfree/status", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${data.session.access_token}` },
-      });
-      const body = await res.json().catch(() => null);
-      if (res.ok) {
-        setCashfreeConfigured(Boolean(body?.cashfreeConfigured));
-        setConnected((prev) => ({ ...prev, cashfree: Boolean(body?.cashfreeConnected) }));
-      }
-    } finally {
-      setLoadingCashfree(false);
-    }
-  }
-
-  useEffect(() => {
-    loadCashfreeStatus();
-  }, []);
-
-  useEffect(() => {
-    setConnected((prev) => ({ ...prev, "google-meet": googleConnected }));
-  }, [googleConnected]);
-
-  useEffect(() => {
-    setConnected((prev) => ({ ...prev, zoom: zoomConnected }));
-  }, [zoomConnected]);
+  }, [queryClient]);
 
   function toggleIntegration(key: IntegrationKey) {
-    setConnected((prev) => ({ ...prev, [key]: !prev[key] }));
+    if (key === "gmail") setGmailMockOn((v) => !v);
   }
 
   async function toggleGoogleIntegration() {
     const client = await getSupabaseBrowserClient();
-    if (!client) return;
+    if (!client || !userId) return;
     const { data, error } = await client.auth.getSession();
     if (error || !data.session?.access_token) return;
 
@@ -181,7 +169,7 @@ export default function IntegrationsPage() {
         method: "POST",
         headers: { Authorization: `Bearer ${data.session.access_token}` },
       });
-      setGoogleConnected(false);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.integrations.googleStatus(userId) });
       return;
     }
 
@@ -197,7 +185,7 @@ export default function IntegrationsPage() {
 
   async function toggleZoomIntegration() {
     const client = await getSupabaseBrowserClient();
-    if (!client) return;
+    if (!client || !userId) return;
     const { data, error } = await client.auth.getSession();
     if (error || !data.session?.access_token) return;
 
@@ -206,7 +194,7 @@ export default function IntegrationsPage() {
         method: "POST",
         headers: { Authorization: `Bearer ${data.session.access_token}` },
       });
-      setZoomConnected(false);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.integrations.zoomStatus(userId) });
       return;
     }
 
@@ -224,16 +212,16 @@ export default function IntegrationsPage() {
 
   async function toggleCashfreeIntegration() {
     const client = await getSupabaseBrowserClient();
-    if (!client) return;
+    if (!client || !userId) return;
     const { data, error } = await client.auth.getSession();
     if (error || !data.session?.access_token) return;
 
-    if (connected.cashfree) {
+    if (cashfreeConnected) {
       await fetch("/api/integrations/cashfree/disconnect", {
         method: "POST",
         headers: { Authorization: `Bearer ${data.session.access_token}` },
       });
-      setConnected((prev) => ({ ...prev, cashfree: false }));
+      await queryClient.invalidateQueries({ queryKey: queryKeys.integrations.cashfreeStatus(userId) });
       return;
     }
     const res = await fetch("/api/integrations/cashfree/connect", {
@@ -241,7 +229,7 @@ export default function IntegrationsPage() {
       headers: { Authorization: `Bearer ${data.session.access_token}` },
     });
     if (res.ok) {
-      setConnected((prev) => ({ ...prev, cashfree: true }));
+      await queryClient.invalidateQueries({ queryKey: queryKeys.integrations.cashfreeStatus(userId) });
       return;
     }
     const body = await res.json().catch(() => null);
@@ -334,15 +322,15 @@ export default function IntegrationsPage() {
                     ? "Checking..."
                     : item.key === "zoom" && loadingZoom
                       ? "Checking..."
-                    : item.key === "cashfree" && loadingCashfree
-                      ? "Checking..."
-                      : item.key === "zoom" && !zoomOAuthConfigured
-                        ? "Set env first"
-                      : item.key === "cashfree" && !cashfreeConfigured
-                        ? "Set env first"
-                    : isConnected
-                      ? "Disconnect"
-                      : "Connect"}
+                      : item.key === "cashfree" && loadingCashfree
+                        ? "Checking..."
+                        : item.key === "zoom" && !zoomOAuthConfigured
+                          ? "Set env first"
+                          : item.key === "cashfree" && !cashfreeConfigured
+                            ? "Set env first"
+                            : isConnected
+                              ? "Disconnect"
+                              : "Connect"}
                 </button>
 
                 <button

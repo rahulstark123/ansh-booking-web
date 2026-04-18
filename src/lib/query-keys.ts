@@ -29,4 +29,10 @@ export const queryKeys = {
     weekly: (hostId: string) => [...queryKeys.availability.root, "weekly", hostId] as const,
     overrides: (hostId: string) => [...queryKeys.availability.root, "overrides", hostId] as const,
   },
+  integrations: {
+    root: ["integrations"] as const,
+    googleStatus: (userId: string) => [...queryKeys.integrations.root, "google", "status", userId] as const,
+    zoomStatus: (userId: string) => [...queryKeys.integrations.root, "zoom", "status", userId] as const,
+    cashfreeStatus: (userId: string) => [...queryKeys.integrations.root, "cashfree", "status", userId] as const,
+  },
 } as const;

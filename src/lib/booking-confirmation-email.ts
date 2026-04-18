@@ -15,6 +15,7 @@ type BookingConfirmationEmailInput = {
 };
 
 const DEFAULT_TIMEZONE = "Asia/Kolkata";
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -24,13 +25,41 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
+/** Nodemailer `from` value; structured form is more reliably preserved by SMTP than a raw string. */
+type MailFrom = string | { name: string; address: string };
+
+const DEFAULT_BOOKING_FROM_NAME = "Ansh Bookings";
+
+function buildFromHeader(): MailFrom | undefined {
+  const addr = process.env.EMAIL_FROM?.trim() || process.env.SMTP_FROM?.trim();
+  if (!addr) return undefined;
+  // Full RFC header in one env var, e.g. Ansh Bookings <bookings@domain>
+  if (addr.includes("<") && addr.includes(">")) return addr;
+
+  const rawName = process.env.EMAIL_FROM_NAME;
+  const displayName = rawName !== undefined ? rawName.trim() : DEFAULT_BOOKING_FROM_NAME;
+  if (displayName) {
+    return { name: displayName, address: addr };
+  }
+  return addr;
+}
+
+/** Bare address for ICS MAILTO: (From may be "Name" <addr> or structured). */
+function emailFromFromHeader(from: MailFrom): string {
+  if (typeof from === "object") return from.address.trim();
+  const m = from.match(/<([^>]+)>/);
+  return (m ? m[1] : from).trim();
+}
+
 function getSmtpConfig() {
   const host = process.env.SMTP_HOST?.trim();
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.trim();
-  const from = process.env.EMAIL_FROM?.trim();
+  const from = buildFromHeader();
   const port = Number(process.env.SMTP_PORT || "587");
-  const secure = (process.env.SMTP_SECURE || "false").toLowerCase() === "true";
+  // Port 465 = implicit TLS → secure: true. Port 587 = usually STARTTLS → secure: false.
+  const secure =
+    (process.env.SMTP_SECURE || (port === 465 ? "true" : "false")).toLowerCase() === "true";
 
   if (!host || !user || !pass || !from || Number.isNaN(port)) {
     return null;
@@ -143,9 +172,40 @@ function buildHtmlBody(input: BookingConfirmationEmailInput): string {
   `;
 }
 
+function buildIcalAttachment(input: BookingConfirmationEmailInput, smtpFrom: MailFrom) {
+  return {
+    method: "REQUEST" as const,
+    filename: "booking-invite.ics",
+    content: [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Ansh Booking//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:REQUEST",
+      "BEGIN:VEVENT",
+      `UID:${input.bookingId || `${Date.now()}-${input.guestEmail}`}@ansh-booking`,
+      `DTSTAMP:${formatUtcForGoogleCalendar(new Date())}`,
+      `DTSTART:${formatUtcForGoogleCalendar(input.startsAt)}`,
+      `DTEND:${formatUtcForGoogleCalendar(input.endsAt)}`,
+      `SUMMARY:${input.eventName.replaceAll("\n", " ")}`,
+      `DESCRIPTION:${buildTextBody(input).replaceAll("\n", "\\n")}`,
+      input.meetingLink ? `LOCATION:${input.meetingLink}` : "",
+      `ORGANIZER;CN=${input.hostName}:MAILTO:${input.hostEmail || emailFromFromHeader(smtpFrom)}`,
+      `ATTENDEE;CN=${input.guestName};RSVP=TRUE:MAILTO:${input.guestEmail}`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ]
+      .filter(Boolean)
+      .join("\r\n"),
+  };
+}
+
 export async function sendBookingConfirmationEmail(input: BookingConfirmationEmailInput): Promise<void> {
   const smtp = getSmtpConfig();
   if (!smtp) {
+    console.warn(
+      "[booking-confirmation-email] No email sent: set SMTP_HOST, SMTP_USER, SMTP_PASS, and EMAIL_FROM (or SMTP_FROM). Port 465 usually needs SMTP_SECURE=true.",
+    );
     return;
   }
 
@@ -157,39 +217,31 @@ export async function sendBookingConfirmationEmail(input: BookingConfirmationEma
       user: smtp.user,
       pass: smtp.pass,
     },
+    tls: {
+      minVersion: "TLSv1.2" as const,
+    },
   });
 
-  await transporter.sendMail({
+  const baseMail = {
     from: smtp.from,
     to: input.guestEmail,
     replyTo: input.hostEmail || smtp.from,
     subject: `Booking Confirmed: ${input.eventName}`,
     text: buildTextBody(input),
     html: buildHtmlBody(input),
-    icalEvent: {
-      method: "REQUEST",
-      filename: "booking-invite.ics",
-      content: [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "PRODID:-//Ansh Booking//EN",
-        "CALSCALE:GREGORIAN",
-        "METHOD:REQUEST",
-        "BEGIN:VEVENT",
-        `UID:${input.bookingId || `${Date.now()}-${input.guestEmail}`}@ansh-booking`,
-        `DTSTAMP:${formatUtcForGoogleCalendar(new Date())}`,
-        `DTSTART:${formatUtcForGoogleCalendar(input.startsAt)}`,
-        `DTEND:${formatUtcForGoogleCalendar(input.endsAt)}`,
-        `SUMMARY:${input.eventName.replaceAll("\n", " ")}`,
-        `DESCRIPTION:${buildTextBody(input).replaceAll("\n", "\\n")}`,
-        input.meetingLink ? `LOCATION:${input.meetingLink}` : "",
-        `ORGANIZER;CN=${input.hostName}:MAILTO:${input.hostEmail || smtp.from}`,
-        `ATTENDEE;CN=${input.guestName};RSVP=TRUE:MAILTO:${input.guestEmail}`,
-        "END:VEVENT",
-        "END:VCALENDAR",
-      ]
-        .filter(Boolean)
-        .join("\r\n"),
-    },
-  });
+  };
+
+  try {
+    await transporter.sendMail({
+      ...baseMail,
+      icalEvent: buildIcalAttachment(input, smtp.from),
+    });
+  } catch (firstErr) {
+    // Some providers (incl. shared hosting SMTP) reject calendar MIME; send body-only so the guest still gets mail.
+    console.warn(
+      "[booking-confirmation-email] Send with calendar attachment failed; retrying without ICS.",
+      firstErr instanceof Error ? firstErr.message : firstErr,
+    );
+    await transporter.sendMail(baseMail);
+  }
 }

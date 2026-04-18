@@ -15,6 +15,25 @@ function clearCookies(res: NextResponse) {
   res.cookies.set("zoom_oauth_user", "", clear);
 }
 
+type ZoomCallbackFailureReason =
+  | "zoom_denied"
+  | "session"
+  | "no_database"
+  | "no_profile"
+  | "zoom_token"
+  | "save_failed";
+
+function zoomIntegrationRedirect(appBase: string, result: "connected" | "error", reason?: ZoomCallbackFailureReason) {
+  const u = new URL(`${appBase.replace(/\/$/, "")}/dashboard/integrations`);
+  if (result === "connected") {
+    u.searchParams.set("zoom", "connected");
+  } else {
+    u.searchParams.set("zoom", "error");
+    if (reason) u.searchParams.set("zoom_reason", reason);
+  }
+  return NextResponse.redirect(u.toString());
+}
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
@@ -26,7 +45,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[zoom/callback] Zoom returned error:", error, url.searchParams.get("error_description"));
-    const res = NextResponse.redirect(`${appBase}/dashboard/integrations?zoom=error`);
+    const res = zoomIntegrationRedirect(appBase, "error", "zoom_denied");
     clearCookies(res);
     return res;
   }
@@ -40,7 +59,7 @@ export async function GET(req: NextRequest) {
       hasUserCookie: Boolean(userId),
       hasPkceCookie: Boolean(codeVerifier),
     });
-    const res = NextResponse.redirect(`${appBase}/dashboard/integrations?zoom=error`);
+    const res = zoomIntegrationRedirect(appBase, "error", "session");
     clearCookies(res);
     return res;
   }
@@ -48,7 +67,7 @@ export async function GET(req: NextRequest) {
   const prisma = getPrisma();
   if (!prisma) {
     console.error("[zoom/callback] Prisma not configured (DATABASE_URL / getPrisma).");
-    const res = NextResponse.redirect(`${appBase}/dashboard/integrations?zoom=error`);
+    const res = zoomIntegrationRedirect(appBase, "error", "no_database");
     clearCookies(res);
     return res;
   }
@@ -61,7 +80,7 @@ export async function GET(req: NextRequest) {
     });
     if (!profile?.wid) {
       console.error("[zoom/callback] No userProfile for hostId from cookie:", userId);
-      const res = NextResponse.redirect(`${appBase}/dashboard/integrations?zoom=error`);
+      const res = zoomIntegrationRedirect(appBase, "error", "no_profile");
       clearCookies(res);
       return res;
     }
@@ -89,12 +108,14 @@ export async function GET(req: NextRequest) {
         expiresAt: token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null,
       },
     });
-    const res = NextResponse.redirect(`${appBase}/dashboard/integrations?zoom=connected`);
+    const res = zoomIntegrationRedirect(appBase, "connected");
     clearCookies(res);
     return res;
   } catch (e) {
     console.error("[zoom/callback] Token exchange or DB save failed:", e);
-    const res = NextResponse.redirect(`${appBase}/dashboard/integrations?zoom=error`);
+    const msg = e instanceof Error ? e.message : String(e);
+    const reason: ZoomCallbackFailureReason = msg.includes("Zoom token exchange") ? "zoom_token" : "save_failed";
+    const res = zoomIntegrationRedirect(appBase, "error", reason);
     clearCookies(res);
     return res;
   }

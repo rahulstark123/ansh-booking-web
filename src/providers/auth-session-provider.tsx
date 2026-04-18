@@ -10,6 +10,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
 const AUTH_TIMEOUT_MS = 12000;
+/** Avoid re-syncing session/profile on every tab focus; keeps dashboard from remount-heavy churn. */
+const TAB_RESYNC_MIN_INTERVAL_MS = 45_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -38,6 +40,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     let unsubscribe: (() => void) | undefined;
     let onFocus: (() => void) | undefined;
     let onVisibilityChange: (() => void) | undefined;
+    let lastTabResyncAt = 0;
 
     async function syncFromSession(showLoading: boolean) {
       if (showLoading) {
@@ -117,13 +120,19 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         });
         unsubscribe = () => listener.subscription.unsubscribe();
 
-        // Re-sync when user returns to tab so stale/slept sessions recover quickly.
-        onFocus = () => {
+        // Re-sync when user returns to tab (throttled — raw focus/visibility fires very often).
+        const maybeResyncFromTab = () => {
+          const now = Date.now();
+          if (now - lastTabResyncAt < TAB_RESYNC_MIN_INTERVAL_MS) return;
+          lastTabResyncAt = now;
           void syncFromSession(false);
+        };
+        onFocus = () => {
+          maybeResyncFromTab();
         };
         onVisibilityChange = () => {
           if (document.visibilityState === "visible") {
-            void syncFromSession(false);
+            maybeResyncFromTab();
           }
         };
         window.addEventListener("focus", onFocus);
