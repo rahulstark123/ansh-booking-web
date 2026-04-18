@@ -1,13 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "crypto";
 import { type NextRequest, NextResponse } from "next/server";
 
-import { buildGoogleAuthUrl } from "@/lib/google-meet";
+import { getPrisma } from "@/lib/prisma";
+import { revokeZoomToken } from "@/lib/zoom";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
-
-const oauthCookieSecure = process.env.NODE_ENV === "production";
 
 function supabaseUrlAndAnonKey(): { url: string; anonKey: string } | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -28,7 +26,6 @@ function bearerToken(req: NextRequest): string | null {
 export async function POST(req: NextRequest) {
   const token = bearerToken(req);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const cfg = supabaseUrlAndAnonKey();
   if (!cfg) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
   const supabase = createClient(cfg.url, cfg.anonKey);
@@ -38,24 +35,16 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser(token);
   if (error || !user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const state = randomUUID();
-  const authUrl = buildGoogleAuthUrl(state);
-  if (!authUrl) return NextResponse.json({ error: "Google OAuth not configured." }, { status: 503 });
-
-  const res = NextResponse.json({ authUrl });
-  res.cookies.set("google_oauth_state", state, {
-    httpOnly: true,
-    secure: oauthCookieSecure,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
+  const prisma = getPrisma();
+  if (!prisma) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  const existing = await prisma.integrationConnection.findUnique({
+    where: { hostId_provider: { hostId: user.id, provider: "ZOOM" } },
+    select: { accessToken: true, refreshToken: true },
   });
-  res.cookies.set("google_oauth_user", user.id, {
-    httpOnly: true,
-    secure: oauthCookieSecure,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
+  const tokenToRevoke = existing?.refreshToken?.trim() || existing?.accessToken?.trim() || "";
+  if (tokenToRevoke) await revokeZoomToken(tokenToRevoke);
+  await prisma.integrationConnection.deleteMany({
+    where: { hostId: user.id, provider: "ZOOM" },
   });
-  return res;
+  return NextResponse.json({ ok: true as const });
 }

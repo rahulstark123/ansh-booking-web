@@ -1,12 +1,12 @@
 "use client";
 
 import { CheckCircleIcon, LinkIcon } from "@heroicons/react/24/outline";
-import { siGmail, siGooglemeet, siZoom } from "simple-icons/icons";
+import { siCashapp, siGmail, siGooglemeet, siZoom } from "simple-icons/icons";
 import { useEffect, useMemo, useState } from "react";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type IntegrationKey = "gmail" | "google-meet" | "zoom";
+type IntegrationKey = "gmail" | "google-meet" | "zoom" | "cashfree";
 
 type Integration = {
   key: IntegrationKey;
@@ -42,15 +42,29 @@ const INTEGRATIONS: Integration[] = [
     iconPath: siZoom.path,
     iconColor: `#${siZoom.hex}`,
   },
+  {
+    key: "cashfree",
+    name: "Cashfree",
+    category: "Payments",
+    description: "Process subscription payments securely through your Cashfree gateway setup.",
+    iconPath: siCashapp.path,
+    iconColor: `#${siCashapp.hex}`,
+  },
 ];
 
 export default function IntegrationsPage() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(true);
+  const [zoomConnected, setZoomConnected] = useState(false);
+  const [zoomOAuthConfigured, setZoomOAuthConfigured] = useState(false);
+  const [loadingZoom, setLoadingZoom] = useState(true);
+  const [cashfreeConfigured, setCashfreeConfigured] = useState(false);
+  const [loadingCashfree, setLoadingCashfree] = useState(true);
   const [connected, setConnected] = useState<Record<IntegrationKey, boolean>>({
     gmail: false,
     "google-meet": false,
     zoom: false,
+    cashfree: false,
   });
 
   async function loadGoogleStatus() {
@@ -77,9 +91,80 @@ export default function IntegrationsPage() {
     loadGoogleStatus();
   }, []);
 
+  async function loadZoomStatus() {
+    setLoadingZoom(true);
+    try {
+      const client = await getSupabaseBrowserClient();
+      if (!client) return;
+      const { data, error } = await client.auth.getSession();
+      if (error || !data.session?.access_token) return;
+      const res = await fetch("/api/integrations/zoom/status", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      const body = await res.json().catch(() => null);
+      if (res.ok) {
+        setZoomOAuthConfigured(Boolean(body?.zoomOAuthConfigured));
+        setZoomConnected(Boolean(body?.zoomConnected));
+      }
+    } finally {
+      setLoadingZoom(false);
+    }
+  }
+
+  useEffect(() => {
+    loadZoomStatus();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const zoomResult = params.get("zoom");
+    if (zoomResult !== "connected" && zoomResult !== "error") return;
+    void loadZoomStatus();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("zoom");
+    const qs = url.searchParams.toString();
+    window.history.replaceState({}, "", `${url.pathname}${qs ? `?${qs}` : ""}`);
+    if (zoomResult === "error") {
+      window.alert(
+        "Zoom did not finish connecting. If you use localhost: OAuth cookies need to work on http (try again after a dev-server restart). Also confirm Zoom redirect URL, scopes, and that the ZOOM database migration ran.",
+      );
+    }
+  }, []);
+
+  async function loadCashfreeStatus() {
+    setLoadingCashfree(true);
+    try {
+      const client = await getSupabaseBrowserClient();
+      if (!client) return;
+      const { data, error } = await client.auth.getSession();
+      if (error || !data.session?.access_token) return;
+      const res = await fetch("/api/integrations/cashfree/status", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      const body = await res.json().catch(() => null);
+      if (res.ok) {
+        setCashfreeConfigured(Boolean(body?.cashfreeConfigured));
+        setConnected((prev) => ({ ...prev, cashfree: Boolean(body?.cashfreeConnected) }));
+      }
+    } finally {
+      setLoadingCashfree(false);
+    }
+  }
+
+  useEffect(() => {
+    loadCashfreeStatus();
+  }, []);
+
   useEffect(() => {
     setConnected((prev) => ({ ...prev, "google-meet": googleConnected }));
   }, [googleConnected]);
+
+  useEffect(() => {
+    setConnected((prev) => ({ ...prev, zoom: zoomConnected }));
+  }, [zoomConnected]);
 
   function toggleIntegration(key: IntegrationKey) {
     setConnected((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -108,6 +193,59 @@ export default function IntegrationsPage() {
     if (res.ok && body?.authUrl) {
       window.location.href = body.authUrl;
     }
+  }
+
+  async function toggleZoomIntegration() {
+    const client = await getSupabaseBrowserClient();
+    if (!client) return;
+    const { data, error } = await client.auth.getSession();
+    if (error || !data.session?.access_token) return;
+
+    if (zoomConnected) {
+      await fetch("/api/integrations/zoom/disconnect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      setZoomConnected(false);
+      return;
+    }
+
+    const res = await fetch("/api/integrations/zoom/connect", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${data.session.access_token}` },
+    });
+    const body = await res.json().catch(() => null);
+    if (res.ok && body?.authUrl) {
+      window.location.href = body.authUrl;
+      return;
+    }
+    window.alert(body?.error || "Could not start Zoom connection.");
+  }
+
+  async function toggleCashfreeIntegration() {
+    const client = await getSupabaseBrowserClient();
+    if (!client) return;
+    const { data, error } = await client.auth.getSession();
+    if (error || !data.session?.access_token) return;
+
+    if (connected.cashfree) {
+      await fetch("/api/integrations/cashfree/disconnect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      setConnected((prev) => ({ ...prev, cashfree: false }));
+      return;
+    }
+    const res = await fetch("/api/integrations/cashfree/connect", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${data.session.access_token}` },
+    });
+    if (res.ok) {
+      setConnected((prev) => ({ ...prev, cashfree: true }));
+      return;
+    }
+    const body = await res.json().catch(() => null);
+    window.alert(body?.error || "Could not connect Cashfree.");
   }
 
   const connectedCount = useMemo(() => Object.values(connected).filter(Boolean).length, [connected]);
@@ -167,19 +305,41 @@ export default function IntegrationsPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    item.key === "google-meet" ? toggleGoogleIntegration() : toggleIntegration(item.key)
+                    item.key === "google-meet"
+                      ? toggleGoogleIntegration()
+                      : item.key === "zoom"
+                        ? toggleZoomIntegration()
+                        : item.key === "cashfree"
+                          ? toggleCashfreeIntegration()
+                          : toggleIntegration(item.key)
                   }
-                  disabled={item.key === "google-meet" && loadingGoogle}
+                  disabled={
+                    (item.key === "google-meet" && loadingGoogle) ||
+                    (item.key === "zoom" && (loadingZoom || !zoomOAuthConfigured)) ||
+                    (item.key === "cashfree" && (loadingCashfree || !cashfreeConfigured))
+                  }
                   className={[
                     "rounded-md px-3 py-2 text-xs font-medium transition",
                     isConnected
                       ? "border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
                       : "bg-[var(--app-primary)] text-[var(--app-primary-foreground)] hover:bg-[var(--app-primary-hover)]",
-                    item.key === "google-meet" && loadingGoogle ? "opacity-60" : "",
+                    (item.key === "google-meet" && loadingGoogle) ||
+                    (item.key === "zoom" && (loadingZoom || !zoomOAuthConfigured)) ||
+                    (item.key === "cashfree" && (loadingCashfree || !cashfreeConfigured))
+                      ? "opacity-60"
+                      : "",
                   ].join(" ")}
                 >
                   {item.key === "google-meet" && loadingGoogle
                     ? "Checking..."
+                    : item.key === "zoom" && loadingZoom
+                      ? "Checking..."
+                    : item.key === "cashfree" && loadingCashfree
+                      ? "Checking..."
+                      : item.key === "zoom" && !zoomOAuthConfigured
+                        ? "Set env first"
+                      : item.key === "cashfree" && !cashfreeConfigured
+                        ? "Set env first"
                     : isConnected
                       ? "Disconnect"
                       : "Connect"}

@@ -1,13 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "crypto";
 import { type NextRequest, NextResponse } from "next/server";
 
-import { buildGoogleAuthUrl } from "@/lib/google-meet";
+import { getPrisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
-
-const oauthCookieSecure = process.env.NODE_ENV === "production";
 
 function supabaseUrlAndAnonKey(): { url: string; anonKey: string } | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -25,10 +22,13 @@ function bearerToken(req: NextRequest): string | null {
   return h.slice(7).trim() || null;
 }
 
-export async function POST(req: NextRequest) {
+function cashfreeConfigured(): boolean {
+  return Boolean(process.env.CASHFREE_APP_ID?.trim() && process.env.CASHFREE_SECRET_KEY?.trim());
+}
+
+export async function GET(req: NextRequest) {
   const token = bearerToken(req);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const cfg = supabaseUrlAndAnonKey();
   if (!cfg) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
   const supabase = createClient(cfg.url, cfg.anonKey);
@@ -38,24 +38,19 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser(token);
   if (error || !user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const state = randomUUID();
-  const authUrl = buildGoogleAuthUrl(state);
-  if (!authUrl) return NextResponse.json({ error: "Google OAuth not configured." }, { status: 503 });
+  const prisma = getPrisma();
+  if (!prisma) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
-  const res = NextResponse.json({ authUrl });
-  res.cookies.set("google_oauth_state", state, {
-    httpOnly: true,
-    secure: oauthCookieSecure,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
+  const configured = cashfreeConfigured();
+  const cashfree = await prisma.integrationConnection.findUnique({
+    where: { hostId_provider: { hostId: user.id, provider: "CASHFREE" } },
+    select: { id: true, updatedAt: true },
   });
-  res.cookies.set("google_oauth_user", user.id, {
-    httpOnly: true,
-    secure: oauthCookieSecure,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 600,
+
+  return NextResponse.json({
+    cashfreeConfigured: configured,
+    cashfreeConnected: configured && Boolean(cashfree),
+    cashfreeUpdatedAt: cashfree?.updatedAt ?? null,
+    cashfreeEnvironment: (process.env.CASHFREE_ENV?.trim() || "TEST").toUpperCase(),
   });
-  return res;
 }

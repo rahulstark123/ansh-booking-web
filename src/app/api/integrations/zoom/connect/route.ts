@@ -2,11 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import { type NextRequest, NextResponse } from "next/server";
 
-import { buildGoogleAuthUrl } from "@/lib/google-meet";
+import { buildZoomAuthUrl, createZoomPkcePair, isZoomOAuthConfigured } from "@/lib/zoom";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
 
+/** Browsers ignore `Secure` cookies on http://localhost — OAuth callbacks would miss state/PKCE. */
 const oauthCookieSecure = process.env.NODE_ENV === "production";
 
 function supabaseUrlAndAnonKey(): { url: string; anonKey: string } | null {
@@ -38,19 +39,31 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser(token);
   if (error || !user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (!isZoomOAuthConfigured()) {
+    return NextResponse.json({ error: "Zoom OAuth is not configured on server." }, { status: 503 });
+  }
+
   const state = randomUUID();
-  const authUrl = buildGoogleAuthUrl(state);
-  if (!authUrl) return NextResponse.json({ error: "Google OAuth not configured." }, { status: 503 });
+  const { codeVerifier, codeChallenge } = createZoomPkcePair();
+  const authUrl = buildZoomAuthUrl(state, codeChallenge);
+  if (!authUrl) return NextResponse.json({ error: "Zoom OAuth not configured." }, { status: 503 });
 
   const res = NextResponse.json({ authUrl });
-  res.cookies.set("google_oauth_state", state, {
+  res.cookies.set("zoom_oauth_pkce", codeVerifier, {
     httpOnly: true,
     secure: oauthCookieSecure,
     sameSite: "lax",
     path: "/",
     maxAge: 600,
   });
-  res.cookies.set("google_oauth_user", user.id, {
+  res.cookies.set("zoom_oauth_state", state, {
+    httpOnly: true,
+    secure: oauthCookieSecure,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600,
+  });
+  res.cookies.set("zoom_oauth_user", user.id, {
     httpOnly: true,
     secure: oauthCookieSecure,
     sameSite: "lax",

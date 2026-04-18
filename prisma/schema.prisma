@@ -80,6 +80,8 @@ enum ScheduledMeetingStatus {
 
 enum IntegrationProvider {
   GOOGLE
+  CASHFREE
+  ZOOM
 }
 
 enum SubscriptionStatus {

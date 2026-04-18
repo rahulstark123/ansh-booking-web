@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 
 import { buildVirtualMeetingLink } from "@/lib/virtual-meeting-link";
 import { getPrisma } from "@/lib/prisma";
+import { generateZoomMeetingLinkForHost } from "@/lib/zoom";
 
 type GoogleTokenResponse = {
   access_token: string;
@@ -143,6 +144,10 @@ export async function generateMeetingLinkForHost(
   location: string,
   input: GoogleMeetInput,
 ): Promise<string | null> {
+  if (location === "zoom") {
+    const zoomLink = await generateZoomMeetingLinkForHost(hostId, wid, input);
+    return zoomLink ?? buildVirtualMeetingLink(location);
+  }
   if (location !== "google-meet") return buildVirtualMeetingLink(location);
 
   const prisma = getPrisma();
