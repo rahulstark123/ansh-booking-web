@@ -113,6 +113,10 @@ function buildPrismaClient(): PrismaClient | null {
 /**
  * Lazy init so Next dev loads `.env.local` before the first DB call (avoids stale P1001 from early init).
  * Only successful clients are cached; `null` is not cached so env fixes apply without restarting.
+ *
+ * After changing `schema.prisma`, run `npx prisma generate` and **restart the Next.js dev server**
+ * (or redeploy). Otherwise Prisma may throw “Unknown argument …” for new fields: the cached client
+ * was constructed with an older generated client.
  */
 export function getPrisma(): PrismaClient | null {
   if (globalForPrisma.prisma != null) {

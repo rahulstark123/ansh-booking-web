@@ -85,10 +85,9 @@ function parsePayload(input: unknown): CreateBookingEventTypeInput | null {
 
   if (weekSlots.length !== weekSlotsRaw.length) return null;
 
-  const bookingPageTheme =
-    typeof b.bookingPageTheme === "string"
-      ? normalizeBookingPageTheme(b.bookingPageTheme)
-      : "default";
+  const bookingPageTheme = normalizeBookingPageTheme(
+    typeof b.bookingPageTheme === "string" ? b.bookingPageTheme : undefined,
+  );
 
   return {
     kind: String(b.kind) as CreateBookingEventTypeInput["kind"],
@@ -157,17 +156,6 @@ export async function POST(req: NextRequest) {
   if (!prisma) {
     return NextResponse.json({ error: "Database is not configured." }, { status: 503 });
   }
-  const bookingEventTypeModel = (prisma as unknown as { bookingEventType?: { create: Function } })
-    .bookingEventType;
-  if (!bookingEventTypeModel) {
-    return NextResponse.json(
-      {
-        error: "Prisma client is out of date for booking models.",
-        detail: "Restart dev server and run `npx prisma generate` so bookingEventType exists.",
-      },
-      { status: 503 },
-    );
-  }
 
   try {
     const requestedWid = workspaceIdFromMeta(authUser.user_metadata);
@@ -205,7 +193,7 @@ export async function POST(req: NextRequest) {
     }
     if (wid == null) wid = await nextWorkspaceId(prisma);
 
-    const created = await bookingEventTypeModel.create({
+    const created = await prisma.bookingEventType.create({
       data: {
         hostId: authUser.id,
         wid,
