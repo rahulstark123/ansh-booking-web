@@ -62,6 +62,14 @@ model BookingEventType {
   bookingQuestion    String?
   /// Public /book/[host] layout template: simple | vintage | modern | compact | editorial
   bookingPageTheme   String             @default("simple") @map("booking_page_theme")
+  /// When true, guests must complete payment (see paymentProvider) before the slot is booked.
+  paymentEnabled       Boolean            @default(false) @map("payment_enabled")
+  /// e.g. razorpay — null when paymentEnabled is false
+  paymentProvider      String?            @map("payment_provider")
+  /// Amount in smallest currency unit (paise for INR)
+  paymentAmountPaisa   Int?               @map("payment_amount_paisa")
+  /// Shown in Razorpay checkout and on the public booking page (e.g. Consultation fee)
+  paymentLabel         String?            @map("payment_label")
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -84,6 +92,8 @@ enum IntegrationProvider {
   GOOGLE
   CASHFREE
   ZOOM
+  /// Host Key ID in `accessToken`, Key Secret in `refreshToken`, webhook signing secret in `scope` (optional).
+  RAZORPAY
 }
 
 enum SubscriptionStatus {
@@ -148,6 +158,9 @@ model BookedMeeting {
   startsAt    DateTime
   endsAt      DateTime
   status      ScheduledMeetingStatus @default(UPCOMING)
+  /// Set when booking required Razorpay; prevents reusing the same payment.
+  razorpayPaymentId String? @unique @map("razorpay_payment_id")
+  razorpayOrderId   String? @map("razorpay_order_id")
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
 

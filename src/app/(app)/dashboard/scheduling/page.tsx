@@ -2,6 +2,7 @@
 
 import {
   ArrowPathIcon,
+  BanknotesIcon,
   CalendarDaysIcon,
   ChevronDownIcon,
   ClockIcon,
@@ -17,6 +18,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { BookingPageThemePreview } from "@/components/booking/BookingPageThemePreview";
@@ -25,6 +27,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useScheduledMeetings } from "@/hooks/use-scheduled-meetings";
 import type { ScheduledMeeting } from "@/lib/meetings-data";
+import type { BookingEventTypeDetail } from "@/lib/booking-event-types-api";
 import {
   createBookingEventType,
   fetchBookingEventType,
@@ -35,6 +38,9 @@ import {
   normalizeBookingPageTheme,
   type BookingPageThemeId,
 } from "@/lib/booking-page-templates";
+import { bookingLocationLabel } from "@/lib/booking-location-label";
+import type { MeetingPaymentProviderId } from "@/lib/meeting-payment-providers";
+import { MEETING_PAYMENT_PROVIDER_CHIPS } from "@/lib/meeting-payment-providers";
 import { deleteScheduledEvent } from "@/lib/meetings-api";
 import { queryKeys } from "@/lib/query-keys";
 import { SCHEDULING_EVENT_TYPES, type SchedulingEventTypeId } from "@/lib/scheduling-event-types";
@@ -59,6 +65,23 @@ const DEFAULT_WORKING_HOURS: DaySchedule[] = [
   { day: "Sun", enabled: false, start: "09:00", end: "13:00" },
 ];
 
+const WEEK_DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+function sortWeekSlots<T extends { dayKey: string }>(slots: T[]): T[] {
+  return [...slots].sort(
+    (a, b) =>
+      (WEEK_DAY_ORDER as readonly string[]).indexOf(a.dayKey) -
+      (WEEK_DAY_ORDER as readonly string[]).indexOf(b.dayKey),
+  );
+}
+
+function availabilityPresetLabel(preset: string): string {
+  if (preset === "working-hours") return "Default working hours";
+  if (preset === "weekday-mornings") return "Weekday mornings";
+  if (preset === "custom") return "Custom schedule";
+  return preset;
+}
+
 export default function SchedulingPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -82,6 +105,9 @@ export default function SchedulingPage() {
   const [loadingEditEvent, setLoadingEditEvent] = useState(false);
   const [rowMenuOpenFor, setRowMenuOpenFor] = useState<string | null>(null);
   const [detailMeeting, setDetailMeeting] = useState<ScheduledMeeting | null>(null);
+  const [detailEventDetail, setDetailEventDetail] = useState<BookingEventTypeDetail | null>(null);
+  const [detailEventLoading, setDetailEventLoading] = useState(false);
+  const [detailEventError, setDetailEventError] = useState<string | null>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
   const rowMenuRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
@@ -96,6 +122,10 @@ export default function SchedulingPage() {
     bookingWindow: "30d",
     bookingQuestion: "",
     bookingPageTheme: "simple" as BookingPageThemeId,
+    paymentEnabled: false,
+    paymentProvider: "razorpay" as MeetingPaymentProviderId,
+    paymentAmountRupees: "",
+    paymentLabel: "",
   });
   const [customHours, setCustomHours] = useState<DaySchedule[]>(
     DEFAULT_WORKING_HOURS.map((d) => ({ ...d })),
@@ -115,6 +145,10 @@ export default function SchedulingPage() {
       eventName: type ? `${type.durationMinutes} min ${type.title}` : prev.eventName,
       duration: type ? String(type.durationMinutes) : prev.duration,
       bookingPageTheme: "simple",
+      paymentEnabled: false,
+      paymentProvider: "razorpay",
+      paymentAmountRupees: "",
+      paymentLabel: "",
     }));
     setCreateOpen(false);
     setSetupOpen(true);
@@ -139,6 +173,33 @@ export default function SchedulingPage() {
       showToast({ kind: "error", title: "Invalid duration", message: "Duration must be greater than 0." });
       return;
     }
+    if (form.paymentEnabled) {
+      if (form.paymentProvider !== "razorpay") {
+        showToast({
+          kind: "error",
+          title: "Payment provider",
+          message: "Only Razorpay is available right now.",
+        });
+        return;
+      }
+      const rupees = Number(form.paymentAmountRupees);
+      if (!Number.isFinite(rupees) || rupees < 1) {
+        showToast({
+          kind: "error",
+          title: "Invalid amount",
+          message: "Enter the meeting fee in INR (minimum ₹1).",
+        });
+        return;
+      }
+      if (!form.paymentLabel.trim()) {
+        showToast({
+          kind: "error",
+          title: "Payment description",
+          message: "Add a short label (e.g. Consultation fee) for the checkout screen.",
+        });
+        return;
+      }
+    }
 
     setSavingEvent(true);
     try {
@@ -154,6 +215,10 @@ export default function SchedulingPage() {
       }
 
       const sourceHours = form.availability === "custom" ? customHours : DEFAULT_WORKING_HOURS;
+      const paymentAmountPaisa =
+        form.paymentEnabled && Number.isFinite(Number(form.paymentAmountRupees))
+          ? Math.round(Number(form.paymentAmountRupees) * 100)
+          : null;
       const payload = {
         kind: selectedType.id,
         eventName: form.eventName.trim(),
@@ -173,6 +238,10 @@ export default function SchedulingPage() {
           startTime: h.start,
           endTime: h.end,
         })),
+        paymentEnabled: form.paymentEnabled,
+        paymentProvider: form.paymentEnabled ? form.paymentProvider : null,
+        paymentAmountPaisa: form.paymentEnabled ? paymentAmountPaisa : null,
+        paymentLabel: form.paymentEnabled ? form.paymentLabel.trim() : null,
       };
       if (setupMode === "edit" && editingEventId) {
         await updateBookingEventType(data.session.access_token, {
@@ -181,6 +250,10 @@ export default function SchedulingPage() {
           description: form.description.trim(),
           bookingQuestion: form.bookingQuestion.trim(),
           bookingPageTheme: normalizeBookingPageTheme(form.bookingPageTheme),
+          paymentEnabled: form.paymentEnabled,
+          paymentProvider: form.paymentEnabled ? form.paymentProvider : null,
+          paymentAmountPaisa: form.paymentEnabled ? paymentAmountPaisa : null,
+          paymentLabel: form.paymentEnabled ? form.paymentLabel.trim() : null,
         });
       } else {
         await createBookingEventType(data.session.access_token, payload);
@@ -235,6 +308,11 @@ export default function SchedulingPage() {
       bookingWindow: detail.bookingWindow,
       bookingQuestion: detail.bookingQuestion ?? "",
       bookingPageTheme: normalizeBookingPageTheme(detail.bookingPageTheme) as BookingPageThemeId,
+      paymentEnabled: detail.paymentEnabled,
+      paymentProvider: (detail.paymentProvider as MeetingPaymentProviderId) || "razorpay",
+      paymentAmountRupees:
+        detail.paymentAmountPaisa != null ? String(detail.paymentAmountPaisa / 100) : "",
+      paymentLabel: detail.paymentLabel ?? "",
     });
     setCustomHours(
       DEFAULT_WORKING_HOURS.map((defaultRow) => {
@@ -373,6 +451,40 @@ export default function SchedulingPage() {
     }
   }, [page, totalPages]);
 
+  useEffect(() => {
+    if (!detailMeeting) {
+      setDetailEventDetail(null);
+      setDetailEventError(null);
+      setDetailEventLoading(false);
+      return;
+    }
+    const eventId = detailMeeting.id.startsWith("evt-") ? detailMeeting.id.slice(4) : detailMeeting.id;
+    let cancelled = false;
+    setDetailEventLoading(true);
+    setDetailEventError(null);
+    setDetailEventDetail(null);
+    void (async () => {
+      try {
+        const client = await getSupabaseBrowserClient();
+        if (!client) throw new Error("Supabase not configured");
+        const { data, error } = await client.auth.getSession();
+        if (error || !data.session?.access_token) throw new Error("Not signed in");
+        const detail = await fetchBookingEventType(data.session.access_token, eventId);
+        if (!cancelled) setDetailEventDetail(detail);
+      } catch (e) {
+        if (!cancelled) {
+          setDetailEventError(e instanceof Error ? e.message : "Could not load event details.");
+          setDetailEventDetail(null);
+        }
+      } finally {
+        if (!cancelled) setDetailEventLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detailMeeting]);
+
   const selectedType = SCHEDULING_EVENT_TYPES.find((x) => x.id === selected) ?? null;
 
   return (
@@ -477,7 +589,7 @@ export default function SchedulingPage() {
                     >
                       <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
                       <p className="text-xs text-zinc-500">
-                        {meeting.eventType} - {meeting.guest}
+                        {meeting.eventType} · {meeting.platform} · {meeting.guest}
                       </p>
                       <div className="mt-1.5 flex items-center gap-2">
                         <div className="inline-flex items-center gap-1 text-xs text-zinc-500">
@@ -621,7 +733,7 @@ export default function SchedulingPage() {
               <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Summary</p>
                 <p className="mt-1 text-zinc-700">
-                  {detailMeeting.eventType} · {detailMeeting.guest}
+                  {detailMeeting.eventType} · {detailMeeting.platform} · {detailMeeting.guest}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1 text-xs text-zinc-600">
@@ -641,6 +753,90 @@ export default function SchedulingPage() {
                 </div>
                 <p className="mt-2 text-xs text-zinc-500">Event ID: {detailMeeting.id.replace(/^evt-/, "")}</p>
               </div>
+
+              {detailEventLoading && (
+                <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/50 p-3 text-xs text-zinc-500">
+                  Loading schedule and booking page details…
+                </div>
+              )}
+              {detailEventError && !detailEventLoading && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900">
+                  {detailEventError}
+                </div>
+              )}
+              {detailEventDetail && (
+                <>
+                  <div className="rounded-lg border border-zinc-200 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event settings</p>
+                    <dl className="mt-2 space-y-1.5 text-xs text-zinc-700">
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-zinc-500">Duration</dt>
+                        <dd>{detailEventDetail.durationMinutes} min</dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-zinc-500">Location</dt>
+                        <dd className="text-right">{bookingLocationLabel(detailEventDetail.location)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-zinc-500">Availability base</dt>
+                        <dd className="text-right">{availabilityPresetLabel(detailEventDetail.availabilityPreset)}</dd>
+                      </div>
+                      {(detailEventDetail.bufferBeforeMinutes > 0 ||
+                        detailEventDetail.bufferAfterMinutes > 0) && (
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-zinc-500">Buffers</dt>
+                          <dd className="text-right">
+                            Before {detailEventDetail.bufferBeforeMinutes}m · After{" "}
+                            {detailEventDetail.bufferAfterMinutes}m
+                          </dd>
+                        </div>
+                      )}
+                      {detailEventDetail.paymentEnabled &&
+                        detailEventDetail.paymentProvider === "razorpay" &&
+                        detailEventDetail.paymentAmountPaisa != null && (
+                          <>
+                            <div className="flex justify-between gap-2">
+                              <dt className="text-zinc-500">Meeting payment</dt>
+                              <dd className="text-right">Razorpay</dd>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <dt className="text-zinc-500">Fee</dt>
+                              <dd className="text-right">
+                                {new Intl.NumberFormat("en-IN", {
+                                  style: "currency",
+                                  currency: "INR",
+                                }).format(detailEventDetail.paymentAmountPaisa / 100)}
+                              </dd>
+                            </div>
+                            {detailEventDetail.paymentLabel ? (
+                              <div className="flex justify-between gap-2">
+                                <dt className="text-zinc-500">Checkout label</dt>
+                                <dd className="text-right">{detailEventDetail.paymentLabel}</dd>
+                              </div>
+                            ) : null}
+                          </>
+                        )}
+                    </dl>
+                  </div>
+                  <div className="rounded-lg border border-zinc-200 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Weekly hours</p>
+                    <ul className="mt-2 space-y-1 text-xs text-zinc-700">
+                      {sortWeekSlots(detailEventDetail.weekSlots).map((slot) => (
+                        <li key={slot.dayKey} className="flex justify-between gap-2">
+                          <span className="font-medium text-zinc-800">{slot.dayKey}</span>
+                          {slot.enabled ? (
+                            <span className="text-zinc-600">
+                              {slot.startTime} – {slot.endTime}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400">Not available</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
 
               <div className="rounded-lg border border-zinc-200 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Public booking link</p>
@@ -683,6 +879,24 @@ export default function SchedulingPage() {
                   <p className="mt-1 text-xs text-zinc-500">No meeting link generated yet for this event.</p>
                 )}
               </div>
+
+              {detailEventDetail && (
+                <div className="rounded-lg border border-zinc-200 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Guest booking page</p>
+                  <p className="mt-1 text-xs text-zinc-600">
+                    {BOOKING_PAGE_THEME_OPTIONS.find(
+                      (o) => o.id === normalizeBookingPageTheme(detailEventDetail.bookingPageTheme),
+                    )?.label ?? "Simple"}
+                  </p>
+                  <div className="mt-3 overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
+                    <BookingPageThemePreview
+                      themeId={
+                        normalizeBookingPageTheme(detailEventDetail.bookingPageTheme) as BookingPageThemeId
+                      }
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="rounded-lg border border-zinc-200 p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Quick actions</p>
@@ -908,6 +1122,91 @@ export default function SchedulingPage() {
               </Field>
 
               <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
+                <div className="flex items-start gap-2">
+                  <BanknotesIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      Meeting payment (optional)
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      Require a fee before the slot is confirmed. Guests pay on your public booking page via
+                      Razorpay (more providers later).
+                    </p>
+                  </div>
+                </div>
+                <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+                  <input
+                    type="checkbox"
+                    checked={form.paymentEnabled}
+                    onChange={(e) => setForm((s) => ({ ...s, paymentEnabled: e.target.checked }))}
+                    className="h-4 w-4 rounded border-zinc-300 text-[var(--app-primary)] focus:ring-[var(--app-ring)]"
+                  />
+                  <span>Accept payment for this meeting</span>
+                </label>
+                {form.paymentEnabled && (
+                  <div className="mt-3 space-y-3 border-t border-zinc-200/80 pt-3">
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                        Provider
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {MEETING_PAYMENT_PROVIDER_CHIPS.map((chip) => {
+                          const active =
+                            !chip.disabled && chip.providerId && form.paymentProvider === chip.providerId;
+                          return (
+                            <button
+                              key={chip.key}
+                              type="button"
+                              disabled={Boolean(chip.disabled)}
+                              onClick={() => {
+                                if (chip.disabled || !chip.providerId) return;
+                                setForm((s) => ({ ...s, paymentProvider: chip.providerId! }));
+                              }}
+                              className={[
+                                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                chip.disabled
+                                  ? "cursor-not-allowed border-zinc-100 bg-zinc-100 text-zinc-400"
+                                  : active
+                                    ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300",
+                              ].join(" ")}
+                              title={chip.hint}
+                            >
+                              {chip.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Amount (INR)">
+                        <Input
+                          value={form.paymentAmountRupees}
+                          onChange={(v) => setForm((s) => ({ ...s, paymentAmountRupees: v.replace(/[^\d.]/g, "") }))}
+                          placeholder="500"
+                          inputMode="decimal"
+                        />
+                      </Field>
+                      <Field label="Checkout label">
+                        <Input
+                          value={form.paymentLabel}
+                          onChange={(v) => setForm((s) => ({ ...s, paymentLabel: v }))}
+                          placeholder="Consultation fee"
+                        />
+                      </Field>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-zinc-500">
+                      Guests pay with <strong>your</strong> Razorpay account. Connect keys under{" "}
+                      <Link href="/dashboard/integrations/razorpay" className="font-medium text-[var(--app-primary)] underline">
+                        Integrations → Razorpay
+                      </Link>{" "}
+                      (Key ID, Key Secret, and optional webhook). Platform subscription billing uses separate env keys.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   Custom theme for booking page
                 </p>
@@ -1036,16 +1335,19 @@ function Input({
   value,
   onChange,
   placeholder,
+  inputMode,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  inputMode?: "decimal" | "numeric" | "text" | "tel" | "email";
 }) {
   return (
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      inputMode={inputMode}
       className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-[var(--app-focus-border)] focus:ring-2 focus:ring-[var(--app-ring)]"
     />
   );

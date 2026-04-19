@@ -1,10 +1,18 @@
 import Razorpay from "razorpay";
 
-type RazorpayConfig = {
+export type RazorpayKeyPair = {
   keyId: string;
   keySecret: string;
+};
+
+type RazorpayConfig = RazorpayKeyPair & {
   proPlanAmountPaisa: number;
 };
+
+/** Standard Razorpay SDK instance (host meeting fees or platform billing). */
+export function getRazorpayInstanceFromKeys(keys: RazorpayKeyPair): Razorpay {
+  return new Razorpay({ key_id: keys.keyId, key_secret: keys.keySecret });
+}
 
 export function getRazorpayConfig(): RazorpayConfig | null {
   const keyId = process.env.RAZORPAY_KEY_ID?.trim() || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim() || "";
@@ -18,5 +26,5 @@ export function getRazorpayConfig(): RazorpayConfig | null {
 }
 
 export function getRazorpayInstance(config: RazorpayConfig): Razorpay {
-  return new Razorpay({ key_id: config.keyId, key_secret: config.keySecret });
+  return getRazorpayInstanceFromKeys(config);
 }

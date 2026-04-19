@@ -22,6 +22,15 @@ export type CreateBookingEventTypeInput = {
   /** Public booking page layout: simple | vintage | modern | compact | editorial */
   bookingPageTheme?: string;
   weekSlots: BookingWeekSlotInput[];
+  /** When true, guests pay via `paymentProvider` before the booking is confirmed. */
+  paymentEnabled?: boolean;
+  paymentProvider?: string | null;
+  /** Stored in paise (INR smallest unit). */
+  paymentAmountPaisa?: number | null;
+  /** Dashboard save: amount in rupees (converted to paise on the server). Prefer over paisa when typing INR. */
+  paymentAmountRupees?: number;
+  /** Checkout / UI label, e.g. Consultation fee */
+  paymentLabel?: string | null;
 };
 
 export type BookingEventTypeDetail = {
@@ -39,6 +48,12 @@ export type BookingEventTypeDetail = {
   bookingQuestion: string;
   bookingPageTheme: string;
   weekSlots: BookingWeekSlotInput[];
+  paymentEnabled: boolean;
+  paymentProvider: string | null;
+  paymentAmountPaisa: number | null;
+  /** Optional on PATCH body from dashboard (rupees). */
+  paymentAmountRupees?: number;
+  paymentLabel: string | null;
 };
 
 export async function createBookingEventType(

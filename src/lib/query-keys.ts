@@ -34,5 +34,6 @@ export const queryKeys = {
     googleStatus: (userId: string) => [...queryKeys.integrations.root, "google", "status", userId] as const,
     zoomStatus: (userId: string) => [...queryKeys.integrations.root, "zoom", "status", userId] as const,
     cashfreeStatus: (userId: string) => [...queryKeys.integrations.root, "cashfree", "status", userId] as const,
+    razorpayStatus: (userId: string) => [...queryKeys.integrations.root, "razorpay", "status", userId] as const,
   },
 } as const;

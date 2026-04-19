@@ -8,6 +8,10 @@ export type ScheduledMeeting = {
   time: string;
   status: MeetingStatus;
   meetingLink?: string | null;
+  /** Stored location key from the event type (e.g. google-meet). */
+  location: string;
+  /** Human-readable platform for list UIs. */
+  platform: string;
 };
 
 export const SCHEDULED_MEETINGS: ScheduledMeeting[] = [
@@ -18,6 +22,8 @@ export const SCHEDULED_MEETINGS: ScheduledMeeting[] = [
     guest: "Aarav Sharma",
     time: "Today, 04:30 PM",
     status: "Upcoming",
+    location: "google-meet",
+    platform: "Google Meet",
   },
   {
     id: "m2",
@@ -26,6 +32,8 @@ export const SCHEDULED_MEETINGS: ScheduledMeeting[] = [
     guest: "Growth Team",
     time: "Tomorrow, 11:00 AM",
     status: "Upcoming",
+    location: "zoom",
+    platform: "Zoom",
   },
   {
     id: "m3",
@@ -34,6 +42,8 @@ export const SCHEDULED_MEETINGS: ScheduledMeeting[] = [
     guest: "Client Ops",
     time: "Thu, 02:00 PM",
     status: "Upcoming",
+    location: "phone",
+    platform: "Phone call",
   },
   {
     id: "m4",
@@ -42,5 +52,7 @@ export const SCHEDULED_MEETINGS: ScheduledMeeting[] = [
     guest: "Neha Verma",
     time: "Yesterday, 06:00 PM",
     status: "Completed",
+    location: "in-person",
+    platform: "In person",
   },
 ];

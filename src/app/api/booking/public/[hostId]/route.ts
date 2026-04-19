@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { sendBookingConfirmationEmail } from "@/lib/booking-confirmation-email";
 import { normalizeBookingPageTheme } from "@/lib/booking-page-templates";
+import { verifyRazorpayPaymentSignature } from "@/lib/billing/razorpay-signature";
+import { assertBookingRazorpayOrderValid } from "@/lib/billing/verify-booking-razorpay-order";
+import { getHostRazorpayCredentials, getRazorpayFromHostCredentials } from "@/lib/host-razorpay";
 import { generateMeetingLinkForHost } from "@/lib/google-meet";
 import { getPrisma } from "@/lib/prisma";
 
@@ -195,6 +198,14 @@ export async function GET(
       })),
     ];
 
+    const hostRazorpay = await prisma.integrationConnection.findUnique({
+      where: { hostId_provider: { hostId: host.id, provider: "RAZORPAY" } },
+      select: { accessToken: true, refreshToken: true },
+    });
+    const hostRazorpayReady = Boolean(
+      hostRazorpay?.accessToken?.trim() && hostRazorpay?.refreshToken?.trim(),
+    );
+
     return NextResponse.json({
       host: {
         id: host.id,
@@ -206,6 +217,24 @@ export async function GET(
         durationMinutes: selected.durationMinutes,
         kind: selected.kind,
         bookingPageTheme: normalizeBookingPageTheme(selected.bookingPageTheme),
+        payment:
+          selected.paymentEnabled &&
+          selected.paymentProvider === "razorpay" &&
+          selected.paymentAmountPaisa != null &&
+          selected.paymentAmountPaisa >= 100
+            ? {
+                enabled: true,
+                provider: "razorpay" as const,
+                amountPaisa: selected.paymentAmountPaisa,
+                amountLabel: new Intl.NumberFormat("en-IN", {
+                  style: "currency",
+                  currency: "INR",
+                  maximumFractionDigits: selected.paymentAmountPaisa % 100 === 0 ? 0 : 2,
+                }).format(selected.paymentAmountPaisa / 100),
+                label: (selected.paymentLabel?.trim() || "Meeting fee").slice(0, 160),
+                hostRazorpayReady,
+              }
+            : { enabled: false as const },
       },
       availability,
       bookedIntervals,
@@ -225,6 +254,9 @@ type CreatePublicBookingBody = {
   guestCountryCode?: string;
   guestPhone?: string;
   notes?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
 };
 
 export async function POST(
@@ -283,10 +315,79 @@ export async function POST(
 
     const eventType = await prisma.bookingEventType.findFirst({
       where: { id: body.eventId, hostId: host.id, wid: host.wid, isActive: true },
-      select: { id: true, eventName: true, kind: true, durationMinutes: true, location: true },
+      select: {
+        id: true,
+        eventName: true,
+        kind: true,
+        durationMinutes: true,
+        location: true,
+        paymentEnabled: true,
+        paymentProvider: true,
+        paymentAmountPaisa: true,
+        paymentLabel: true,
+      },
     });
     if (!eventType) {
       return NextResponse.json({ error: "Event type not found." }, { status: 404 });
+    }
+
+    const requiresRazorpay =
+      Boolean(eventType.paymentEnabled) &&
+      eventType.paymentProvider === "razorpay" &&
+      typeof eventType.paymentAmountPaisa === "number" &&
+      eventType.paymentAmountPaisa >= 100;
+
+    const startsAtIso = startsAt.toISOString();
+    let verifiedRazorpay: { orderId: string; paymentId: string } | null = null;
+
+    if (requiresRazorpay) {
+      const orderId = body.razorpayOrderId?.trim() ?? "";
+      const paymentId = body.razorpayPaymentId?.trim() ?? "";
+      const signature = body.razorpaySignature?.trim() ?? "";
+      if (!orderId || !paymentId || !signature) {
+        return NextResponse.json(
+          {
+            error: "Payment is required for this event. Complete checkout, then try again.",
+            code: "PAYMENT_REQUIRED",
+          },
+          { status: 402 },
+        );
+      }
+
+      const hostCreds = await getHostRazorpayCredentials(prisma, host.id);
+      if (!hostCreds) {
+        return NextResponse.json(
+          { error: "This host has not connected Razorpay. Meeting payments are unavailable." },
+          { status: 503 },
+        );
+      }
+
+      if (!verifyRazorpayPaymentSignature(orderId, paymentId, signature, hostCreds.keySecret)) {
+        return NextResponse.json({ error: "Invalid payment signature." }, { status: 400 });
+      }
+
+      const razorpay = getRazorpayFromHostCredentials(hostCreds);
+      const orderOk = await assertBookingRazorpayOrderValid({
+        razorpay,
+        orderId,
+        expectedAmountPaisa: eventType.paymentAmountPaisa!,
+        hostId: host.id,
+        eventId: eventType.id,
+        startsAtIso,
+      });
+      if (!orderOk.ok) {
+        return NextResponse.json({ error: orderOk.message }, { status: 400 });
+      }
+
+      const existingPayment = await prisma.bookedMeeting.findFirst({
+        where: { razorpayPaymentId: paymentId },
+        select: { id: true },
+      });
+      if (existingPayment) {
+        return NextResponse.json({ error: "This payment was already used for a booking." }, { status: 409 });
+      }
+
+      verifiedRazorpay = { orderId, paymentId };
     }
 
     const endsAt = new Date(startsAt);
@@ -366,6 +467,8 @@ export async function POST(
               startsAt,
               endsAt,
               status: "UPCOMING",
+              razorpayPaymentId: verifiedRazorpay?.paymentId ?? null,
+              razorpayOrderId: verifiedRazorpay?.orderId ?? null,
             },
             select: { id: true, meetingLink: true },
           });

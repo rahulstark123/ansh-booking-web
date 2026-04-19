@@ -2,6 +2,7 @@
 
 import { CheckCircleIcon, LinkIcon } from "@heroicons/react/24/outline";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { siCashapp, siGmail, siGooglemeet, siZoom } from "simple-icons/icons";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,7 +10,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 
-type IntegrationKey = "gmail" | "google-meet" | "zoom" | "cashfree";
+type IntegrationKey = "gmail" | "google-meet" | "zoom" | "cashfree" | "razorpay";
 
 type Integration = {
   key: IntegrationKey;
@@ -53,6 +54,15 @@ const INTEGRATIONS: Integration[] = [
     iconPath: siCashapp.path,
     iconColor: `#${siCashapp.hex}`,
   },
+  {
+    key: "razorpay",
+    name: "Razorpay",
+    category: "Payments",
+    description:
+      "Connect your Razorpay account to charge meeting fees on public booking links. Keys stay tied to your workspace.",
+    iconPath: siCashapp.path,
+    iconColor: "#0C2451",
+  },
 ];
 
 const INTEGRATION_STATUS_STALE_MS = 5 * 60 * 1000;
@@ -71,6 +81,7 @@ async function authorizedGetJson(url: string): Promise<Record<string, unknown>> 
 }
 
 export default function IntegrationsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const userId = useAuthStore((s) => s.user?.id) ?? "";
   const [gmailMockOn, setGmailMockOn] = useState(false);
@@ -102,15 +113,31 @@ export default function IntegrationsPage() {
     refetchOnReconnect: false,
   });
 
+  const razorpayQ = useQuery({
+    queryKey: queryKeys.integrations.razorpayStatus(userId),
+    queryFn: () =>
+      authorizedGetJson(
+        `/api/integrations/razorpay/status?origin=${encodeURIComponent(typeof window !== "undefined" ? window.location.origin : "")}`,
+      ),
+    enabled: Boolean(userId),
+    staleTime: INTEGRATION_STATUS_STALE_MS,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: false,
+  });
+
   const googleConnected = Boolean(googleQ.data?.googleMeetConnected);
   const zoomConnected = Boolean(zoomQ.data?.zoomConnected);
   const zoomOAuthConfigured = Boolean(zoomQ.data?.zoomOAuthConfigured);
   const cashfreeConfigured = Boolean(cashfreeQ.data?.cashfreeConfigured);
   const cashfreeConnected = Boolean(cashfreeQ.data?.cashfreeConnected);
+  const razorpayConnected = Boolean(razorpayQ.data?.razorpayConnected);
 
   const loadingGoogle = googleQ.isPending;
   const loadingZoom = zoomQ.isPending;
   const loadingCashfree = cashfreeQ.isPending;
+  const loadingRazorpay = razorpayQ.isPending;
 
   const connected = useMemo(
     () =>
@@ -119,8 +146,9 @@ export default function IntegrationsPage() {
         "google-meet": googleConnected,
         zoom: zoomConnected,
         cashfree: cashfreeConnected,
+        razorpay: razorpayConnected,
       }) satisfies Record<IntegrationKey, boolean>,
-    [gmailMockOn, googleConnected, zoomConnected, cashfreeConnected],
+    [gmailMockOn, googleConnected, zoomConnected, cashfreeConnected, razorpayConnected],
   );
 
   useEffect(() => {
@@ -236,6 +264,26 @@ export default function IntegrationsPage() {
     window.alert(body?.error || "Could not connect Cashfree.");
   }
 
+  async function toggleRazorpayIntegration() {
+    const client = await getSupabaseBrowserClient();
+    if (!client || !userId) return;
+    const { data, error } = await client.auth.getSession();
+    if (error || !data.session?.access_token) return;
+
+    if (razorpayConnected) {
+      if (!window.confirm("Remove Razorpay? Meeting fees on booking pages will stop until you connect again.")) {
+        return;
+      }
+      await fetch("/api/integrations/razorpay/disconnect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.integrations.razorpayStatus(userId) });
+      return;
+    }
+    router.push("/dashboard/integrations/razorpay");
+  }
+
   const connectedCount = useMemo(() => Object.values(connected).filter(Boolean).length, [connected]);
 
   return (
@@ -297,14 +345,17 @@ export default function IntegrationsPage() {
                       ? toggleGoogleIntegration()
                       : item.key === "zoom"
                         ? toggleZoomIntegration()
-                        : item.key === "cashfree"
+                        :                     item.key === "cashfree"
                           ? toggleCashfreeIntegration()
-                          : toggleIntegration(item.key)
+                          : item.key === "razorpay"
+                            ? void toggleRazorpayIntegration()
+                            : toggleIntegration(item.key)
                   }
                   disabled={
                     (item.key === "google-meet" && loadingGoogle) ||
                     (item.key === "zoom" && (loadingZoom || !zoomOAuthConfigured)) ||
-                    (item.key === "cashfree" && (loadingCashfree || !cashfreeConfigured))
+                    (item.key === "cashfree" && (loadingCashfree || !cashfreeConfigured)) ||
+                    (item.key === "razorpay" && loadingRazorpay)
                   }
                   className={[
                     "rounded-md px-3 py-2 text-xs font-medium transition",
@@ -313,7 +364,8 @@ export default function IntegrationsPage() {
                       : "bg-[var(--app-primary)] text-[var(--app-primary-foreground)] hover:bg-[var(--app-primary-hover)]",
                     (item.key === "google-meet" && loadingGoogle) ||
                     (item.key === "zoom" && (loadingZoom || !zoomOAuthConfigured)) ||
-                    (item.key === "cashfree" && (loadingCashfree || !cashfreeConfigured))
+                    (item.key === "cashfree" && (loadingCashfree || !cashfreeConfigured)) ||
+                    (item.key === "razorpay" && loadingRazorpay)
                       ? "opacity-60"
                       : "",
                   ].join(" ")}
@@ -324,21 +376,31 @@ export default function IntegrationsPage() {
                       ? "Checking..."
                       : item.key === "cashfree" && loadingCashfree
                         ? "Checking..."
-                        : item.key === "zoom" && !zoomOAuthConfigured
-                          ? "Set env first"
-                          : item.key === "cashfree" && !cashfreeConfigured
+                        : item.key === "razorpay" && loadingRazorpay
+                          ? "Checking..."
+                          : item.key === "zoom" && !zoomOAuthConfigured
                             ? "Set env first"
-                            : isConnected
-                              ? "Disconnect"
-                              : "Connect"}
+                            : item.key === "cashfree" && !cashfreeConfigured
+                              ? "Set env first"
+                              : isConnected
+                                ? "Disconnect"
+                                : "Connect"}
                 </button>
 
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 transition hover:text-zinc-700"
+                  onClick={() => {
+                    if (item.key === "razorpay") router.push("/dashboard/integrations/razorpay");
+                  }}
+                  className={[
+                    "inline-flex items-center gap-1 text-xs font-medium transition",
+                    item.key === "razorpay"
+                      ? "text-[var(--app-primary)] hover:underline"
+                      : "text-zinc-500 hover:text-zinc-700",
+                  ].join(" ")}
                 >
                   <LinkIcon className="h-3.5 w-3.5" />
-                  Details
+                  {item.key === "razorpay" ? "Setup" : "Details"}
                 </button>
               </div>
             </article>

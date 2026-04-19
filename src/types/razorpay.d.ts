@@ -16,7 +16,10 @@ declare global {
         razorpay_order_id: string;
         razorpay_signature: string;
       }) => void | Promise<void>;
-    }) => { open: () => void };
+    }) => {
+      open: () => void;
+      on?: (event: "payment.failed", callback: (response: { error?: { description?: string } }) => void) => void;
+    };
   }
 }
 

@@ -2,6 +2,7 @@ import type { ScheduledMeetingStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { bookingLocationLabel } from "@/lib/booking-location-label";
 import { formatMeetingListTime } from "@/lib/format-meeting-list-time";
 import { generateMeetingLinkForHost } from "@/lib/google-meet";
 import type { MeetingStatus, ScheduledMeeting } from "@/lib/meetings-data";
@@ -116,6 +117,8 @@ export async function GET(req: NextRequest) {
       guest: "Schedule created",
       time: "Booking link ready",
       status: "Upcoming",
+      location: e.location,
+      platform: bookingLocationLabel(e.location),
     }));
     return NextResponse.json({
       items,

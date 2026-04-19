@@ -2,6 +2,7 @@ import type { BookingEventKind, ScheduledMeetingStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { bookingLocationLabel } from "@/lib/booking-location-label";
 import { formatMeetingListTime } from "@/lib/format-meeting-list-time";
 import type { MeetingStatus, ScheduledMeeting } from "@/lib/meetings-data";
 import { getPrisma } from "@/lib/prisma";
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
     const rows = await prisma.bookedMeeting.findMany({
       where,
       orderBy: { startsAt: "asc" },
-      include: { eventType: { select: { eventName: true, kind: true } } },
+      include: { eventType: { select: { eventName: true, kind: true, location: true } } },
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
@@ -130,6 +131,8 @@ export async function GET(request: NextRequest) {
       time: formatMeetingListTime(b.startsAt, now),
       status: statusToUi(b.status),
       meetingLink: b.meetingLink,
+      location: b.eventType.location,
+      platform: bookingLocationLabel(b.eventType.location),
     }));
 
     return NextResponse.json({

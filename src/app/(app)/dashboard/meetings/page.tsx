@@ -59,11 +59,13 @@ export default function MeetingsPage() {
                 <li key={meeting.id} className="flex items-center justify-between gap-5 px-2 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-zinc-500">
-                      <UserCircleIcon className="h-4 w-4 text-zinc-400" />
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-zinc-500">
+                      <UserCircleIcon className="h-4 w-4 shrink-0 text-zinc-400" />
                       <span>{meeting.guest}</span>
-                      <span aria-hidden>-</span>
+                      <span aria-hidden>·</span>
                       <span>{meeting.eventType}</span>
+                      <span aria-hidden>·</span>
+                      <span>{meeting.platform}</span>
                     </p>
                     <div className="mt-1 flex items-center gap-2">
                       <div className="inline-flex items-center gap-1 text-xs text-zinc-500">

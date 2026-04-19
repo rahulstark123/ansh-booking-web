@@ -12,12 +12,15 @@ export function DashboardGate({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
 
+  /** Only block the whole dashboard until we know if someone is signed in. Tab refocus can set `loading` again — do not unmount pages then. */
+  const initialBootstrap = loading && user === null;
+
   useEffect(() => {
     if (loading) return;
     if (!user) router.replace("/login");
   }, [loading, user, router]);
 
-  if (loading) {
+  if (initialBootstrap) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
         <ArrowPathIcon className="h-8 w-8 animate-spin text-[var(--app-primary)]" aria-hidden />

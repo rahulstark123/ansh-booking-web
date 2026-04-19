@@ -7,8 +7,21 @@ import PhoneInput from "react-phone-input-2";
 
 import { BookingCalendarSelectByTemplate } from "@/components/booking/templates/BookingCalendarSelectByTemplate";
 import { getTemplateShell } from "@/lib/booking-page-templates";
+import { ensureRazorpayCheckoutScript } from "@/lib/razorpay-load-script";
 
 type BookingEventKind = "ONE_ON_ONE" | "GROUP" | "ROUND_ROBIN";
+
+type PublicEventPayment =
+  | { enabled: false }
+  | {
+      enabled: true;
+      provider: "razorpay";
+      amountPaisa: number;
+      amountLabel: string;
+      label: string;
+      /** False until the host saves Razorpay API keys under Integrations. */
+      hostRazorpayReady: boolean;
+    };
 
 type PublicBookingPayload = {
   host: { id: string; name: string };
@@ -18,6 +31,7 @@ type PublicBookingPayload = {
     durationMinutes: number;
     kind: BookingEventKind;
     bookingPageTheme?: string;
+    payment: PublicEventPayment;
   };
   availability: Array<{ dayOfWeek: number; enabled: boolean; startTime: string; endTime: string }>;
   bookedIntervals: Array<{ startsAt: string; endsAt: string }>;
@@ -27,6 +41,16 @@ type PublicBookingPayload = {
 type TimeSlot = {
   iso: string;
   label: string;
+};
+
+type RazorpayBookingOrderResponse = {
+  keyId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  description: string;
+  companyName: string;
+  prefill?: { email?: string; name?: string };
 };
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -146,6 +170,18 @@ export default function PublicBookingPage() {
         setData({
           ...payload,
           bookedIntervals: payload.bookedIntervals ?? [],
+          event: {
+            ...payload.event,
+            payment:
+              payload.event.payment?.enabled === true
+                ? {
+                    ...payload.event.payment,
+                    hostRazorpayReady: Boolean(
+                      (payload.event.payment as { hostRazorpayReady?: boolean }).hostRazorpayReady,
+                    ),
+                  }
+                : (payload.event.payment ?? { enabled: false }),
+          },
         });
         setTimezone(payload.timezone || "Asia/Kolkata");
       })
@@ -238,6 +274,89 @@ export default function PublicBookingPage() {
     setSubmitError(null);
     setSubmitting(true);
     try {
+      const pay = data.event.payment;
+      const needsRazorpay = pay.enabled === true && pay.provider === "razorpay";
+      if (needsRazorpay && !pay.hostRazorpayReady) {
+        throw new Error(
+          "This host has not finished connecting Razorpay yet. Please try again later or contact the host.",
+        );
+      }
+
+      let razorpayExtra: {
+        razorpayOrderId: string;
+        razorpayPaymentId: string;
+        razorpaySignature: string;
+      } | null = null;
+
+      if (needsRazorpay) {
+        const orderRes = await fetch(
+          `/api/booking/public/${encodeURIComponent(data.host.id)}/razorpay-order`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              eventId: data.event.id,
+              startsAt: selectedSlot.iso,
+              guestEmail: form.guestEmail.trim(),
+              guestName: form.guestName.trim(),
+            }),
+          },
+        );
+        const orderJson = (await orderRes.json().catch(() => null)) as { error?: string } | null;
+        if (!orderRes.ok) {
+          throw new Error(orderJson?.error || "Could not start payment.");
+        }
+        const checkout = orderJson as RazorpayBookingOrderResponse;
+
+        const scriptOk = await ensureRazorpayCheckoutScript();
+        const RazorpayCtor = window.Razorpay;
+        if (!scriptOk || !RazorpayCtor) {
+          throw new Error("Could not load Razorpay checkout. Please try again.");
+        }
+
+        type RazorpayBookingPayment = {
+          razorpayOrderId: string;
+          razorpayPaymentId: string;
+          razorpaySignature: string;
+        } | null;
+
+        razorpayExtra = await new Promise<RazorpayBookingPayment>((resolve, reject) => {
+          const instance = new RazorpayCtor({
+            key: checkout.keyId,
+            amount: checkout.amount,
+            currency: checkout.currency,
+            name: checkout.companyName,
+            description: checkout.description,
+            order_id: checkout.orderId,
+            prefill: {
+              email: checkout.prefill?.email || form.guestEmail.trim(),
+              name: checkout.prefill?.name || form.guestName.trim(),
+            },
+            theme: { color: "#2a38ff" },
+            handler: (response) => {
+              resolve({
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              });
+            },
+            modal: {
+              ondismiss: () => {
+                resolve(null);
+              },
+            },
+          });
+          instance.on?.("payment.failed", () => {
+            reject(new Error("Payment was not successful. Try again or use another method."));
+          });
+          instance.open();
+        });
+
+        if (!razorpayExtra) {
+          return;
+        }
+      }
+
       const res = await fetch(`/api/booking/public/${encodeURIComponent(data.host.id)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -249,11 +368,16 @@ export default function PublicBookingPage() {
           guestCountryCode: form.guestCountryCode,
           guestPhone: form.guestPhone.trim(),
           notes: form.notes.trim() || undefined,
+          ...(razorpayExtra ?? {}),
         }),
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(payload?.error || "Could not schedule this event.");
+        const msg =
+          res.status === 402 && payload && typeof payload === "object" && "error" in payload
+            ? String((payload as { error?: string }).error)
+            : (payload as { error?: string } | null)?.error || "Could not schedule this event.";
+        throw new Error(msg);
       }
       setConfirmedMeetingLink(
         payload && typeof payload.meetingLink === "string" ? payload.meetingLink : null,
@@ -424,13 +548,42 @@ export default function PublicBookingPage() {
 
             {submitError && <p className="mb-3 text-sm text-rose-600">{submitError}</p>}
 
+            {data.event.payment.enabled && (
+              <>
+                {!data.event.payment.hostRazorpayReady ? (
+                  <p className="mb-3 rounded-lg border border-rose-200/80 bg-rose-50 px-3 py-2 text-xs text-rose-950">
+                    A fee of <span className="font-semibold">{data.event.payment.amountLabel}</span> applies (
+                    {data.event.payment.label}), but this host has not connected Razorpay yet. Booking with payment
+                    cannot continue until they add their keys under Integrations.
+                  </p>
+                ) : (
+                  <p className="mb-3 rounded-lg border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                    Payment required:{" "}
+                    <span className="font-semibold">{data.event.payment.amountLabel}</span> —{" "}
+                    {data.event.payment.label}. Razorpay opens next; your slot is saved after a successful payment.
+                  </p>
+                )}
+              </>
+            )}
+
             <button
               type="button"
-              disabled={submitting}
+              disabled={
+                submitting ||
+                (data.event.payment.enabled === true && !data.event.payment.hostRazorpayReady)
+              }
               onClick={handleSchedule}
               className={`rounded-full px-5 py-2.5 text-sm font-semibold transition disabled:opacity-60 ${shell.scheduleBtn}`}
             >
-              {submitting ? "Scheduling..." : "Schedule Event"}
+              {data.event.payment.enabled && !data.event.payment.hostRazorpayReady
+                ? "Payment unavailable"
+                : data.event.payment.enabled
+                  ? submitting
+                    ? "Processing…"
+                    : `Pay ${data.event.payment.amountLabel} & schedule`
+                  : submitting
+                    ? "Scheduling..."
+                    : "Schedule Event"}
             </button>
           </div>
         )}

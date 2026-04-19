@@ -89,6 +89,30 @@ function parsePayload(input: unknown): CreateBookingEventTypeInput | null {
     typeof b.bookingPageTheme === "string" ? b.bookingPageTheme : undefined,
   );
 
+  const paymentEnabled = Boolean(b.paymentEnabled);
+  let paymentProvider: string | null = null;
+  let paymentAmountPaisa: number | null = null;
+  let paymentLabel: string | null = null;
+  if (paymentEnabled) {
+    const provider = typeof b.paymentProvider === "string" ? b.paymentProvider.trim().toLowerCase() : "";
+    if (provider !== "razorpay") return null;
+    let paisa: number | null = null;
+    const rupeesRaw = b.paymentAmountRupees ?? b.paymentAmountInRupees;
+    if (typeof rupeesRaw === "number" && Number.isFinite(rupeesRaw)) {
+      paisa = Math.round(rupeesRaw * 100);
+    } else if (typeof rupeesRaw === "string" && rupeesRaw.trim()) {
+      paisa = Math.round(Number(rupeesRaw.trim()) * 100);
+    } else if (typeof b.paymentAmountPaisa === "number" && Number.isFinite(b.paymentAmountPaisa)) {
+      paisa = Math.trunc(b.paymentAmountPaisa);
+    }
+    if (paisa == null || paisa < 100 || paisa > 100_000_000) return null;
+    paymentAmountPaisa = paisa;
+    const label = typeof b.paymentLabel === "string" ? b.paymentLabel.trim() : "";
+    if (!label || label.length > 160) return null;
+    paymentProvider = "razorpay";
+    paymentLabel = label;
+  }
+
   return {
     kind: String(b.kind) as CreateBookingEventTypeInput["kind"],
     eventName: String(b.eventName).trim(),
@@ -103,6 +127,10 @@ function parsePayload(input: unknown): CreateBookingEventTypeInput | null {
     bookingQuestion: typeof b.bookingQuestion === "string" ? b.bookingQuestion : undefined,
     bookingPageTheme,
     weekSlots,
+    paymentEnabled,
+    paymentProvider,
+    paymentAmountPaisa,
+    paymentLabel,
   };
 }
 
@@ -209,6 +237,10 @@ export async function POST(req: NextRequest) {
         bookingWindow: payload.bookingWindow,
         bookingQuestion: payload.bookingQuestion?.trim() || null,
         bookingPageTheme: payload.bookingPageTheme,
+        paymentEnabled: payload.paymentEnabled,
+        paymentProvider: payload.paymentEnabled ? payload.paymentProvider : null,
+        paymentAmountPaisa: payload.paymentEnabled ? payload.paymentAmountPaisa : null,
+        paymentLabel: payload.paymentEnabled ? payload.paymentLabel : null,
         weekSlots: {
           create: payload.weekSlots.map((slot) => ({
             dayKey: slot.dayKey,
@@ -286,6 +318,10 @@ export async function GET(req: NextRequest) {
         bookingWindow: true,
         bookingQuestion: true,
         bookingPageTheme: true,
+        paymentEnabled: true,
+        paymentProvider: true,
+        paymentAmountPaisa: true,
+        paymentLabel: true,
         weekSlots: {
           orderBy: { dayKey: "asc" },
           select: { dayKey: true, enabled: true, startTime: true, endTime: true },
@@ -310,6 +346,10 @@ export async function GET(req: NextRequest) {
       bookingQuestion: eventType.bookingQuestion ?? "",
       bookingPageTheme: normalizeBookingPageTheme(eventType.bookingPageTheme),
       weekSlots: eventType.weekSlots,
+      paymentEnabled: eventType.paymentEnabled,
+      paymentProvider: eventType.paymentProvider,
+      paymentAmountPaisa: eventType.paymentAmountPaisa,
+      paymentLabel: eventType.paymentLabel,
     };
     return NextResponse.json(payload);
   } catch (e) {
@@ -408,6 +448,10 @@ export async function PATCH(req: NextRequest) {
           bookingWindow: payload.bookingWindow,
           bookingQuestion: payload.bookingQuestion?.trim() || null,
           bookingPageTheme: payload.bookingPageTheme,
+          paymentEnabled: payload.paymentEnabled,
+          paymentProvider: payload.paymentEnabled ? payload.paymentProvider : null,
+          paymentAmountPaisa: payload.paymentEnabled ? payload.paymentAmountPaisa : null,
+          paymentLabel: payload.paymentEnabled ? payload.paymentLabel : null,
           weekSlots: {
             create: payload.weekSlots.map((slot) => ({
               dayKey: slot.dayKey,
