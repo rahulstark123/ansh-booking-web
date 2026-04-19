@@ -126,7 +126,14 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     console.error("[api/booking/meetings]", e);
-    return NextResponse.json({ error: "Failed to load meetings." }, { status: 500 });
+    const detail = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      {
+        error: "Failed to load meetings.",
+        detail: process.env.NODE_ENV === "development" ? detail : undefined,
+      },
+      { status: 500 },
+    );
   }
 }
 
