@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { bookingKindToSchedulingTypeId, schedulingTypeIdToBookingKind } from "@/lib/booking-kind";
+import { normalizeBookingPageTheme } from "@/lib/booking-page-templates";
 import type { BookingEventTypeDetail, CreateBookingEventTypeInput } from "@/lib/booking-event-types-api";
 import { getPrisma } from "@/lib/prisma";
 
@@ -84,6 +85,11 @@ function parsePayload(input: unknown): CreateBookingEventTypeInput | null {
 
   if (weekSlots.length !== weekSlotsRaw.length) return null;
 
+  const bookingPageTheme =
+    typeof b.bookingPageTheme === "string"
+      ? normalizeBookingPageTheme(b.bookingPageTheme)
+      : "default";
+
   return {
     kind: String(b.kind) as CreateBookingEventTypeInput["kind"],
     eventName: String(b.eventName).trim(),
@@ -96,6 +102,7 @@ function parsePayload(input: unknown): CreateBookingEventTypeInput | null {
     bufferAfterMinutes: Number(b.bufferAfterMinutes),
     bookingWindow: String(b.bookingWindow ?? ""),
     bookingQuestion: typeof b.bookingQuestion === "string" ? b.bookingQuestion : undefined,
+    bookingPageTheme,
     weekSlots,
   };
 }
@@ -213,6 +220,7 @@ export async function POST(req: NextRequest) {
         bufferAfterMinutes: Math.trunc(payload.bufferAfterMinutes),
         bookingWindow: payload.bookingWindow,
         bookingQuestion: payload.bookingQuestion?.trim() || null,
+        bookingPageTheme: payload.bookingPageTheme,
         weekSlots: {
           create: payload.weekSlots.map((slot) => ({
             dayKey: slot.dayKey,
@@ -289,6 +297,7 @@ export async function GET(req: NextRequest) {
         bufferAfterMinutes: true,
         bookingWindow: true,
         bookingQuestion: true,
+        bookingPageTheme: true,
         weekSlots: {
           orderBy: { dayKey: "asc" },
           select: { dayKey: true, enabled: true, startTime: true, endTime: true },
@@ -311,6 +320,7 @@ export async function GET(req: NextRequest) {
       bufferAfterMinutes: eventType.bufferAfterMinutes,
       bookingWindow: eventType.bookingWindow,
       bookingQuestion: eventType.bookingQuestion ?? "",
+      bookingPageTheme: normalizeBookingPageTheme(eventType.bookingPageTheme),
       weekSlots: eventType.weekSlots,
     };
     return NextResponse.json(payload);
@@ -409,6 +419,7 @@ export async function PATCH(req: NextRequest) {
           bufferAfterMinutes: Math.trunc(payload.bufferAfterMinutes),
           bookingWindow: payload.bookingWindow,
           bookingQuestion: payload.bookingQuestion?.trim() || null,
+          bookingPageTheme: payload.bookingPageTheme,
           weekSlots: {
             create: payload.weekSlots.map((slot) => ({
               dayKey: slot.dayKey,

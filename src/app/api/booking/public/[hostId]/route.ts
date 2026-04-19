@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { sendBookingConfirmationEmail } from "@/lib/booking-confirmation-email";
+import { normalizeBookingPageTheme } from "@/lib/booking-page-templates";
 import { generateMeetingLinkForHost } from "@/lib/google-meet";
 import { getPrisma } from "@/lib/prisma";
 
@@ -204,6 +205,7 @@ export async function GET(
         title: selected.eventName,
         durationMinutes: selected.durationMinutes,
         kind: selected.kind,
+        bookingPageTheme: normalizeBookingPageTheme(selected.bookingPageTheme),
       },
       availability,
       bookedIntervals,

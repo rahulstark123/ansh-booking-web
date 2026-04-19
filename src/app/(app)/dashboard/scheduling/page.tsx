@@ -19,6 +19,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { BookingPageThemePreview } from "@/components/booking/BookingPageThemePreview";
 import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -29,6 +30,11 @@ import {
   fetchBookingEventType,
   updateBookingEventType,
 } from "@/lib/booking-event-types-api";
+import {
+  BOOKING_PAGE_THEME_OPTIONS,
+  normalizeBookingPageTheme,
+  type BookingPageThemeId,
+} from "@/lib/booking-page-templates";
 import { deleteScheduledEvent } from "@/lib/meetings-api";
 import { queryKeys } from "@/lib/query-keys";
 import { SCHEDULING_EVENT_TYPES, type SchedulingEventTypeId } from "@/lib/scheduling-event-types";
@@ -89,6 +95,7 @@ export default function SchedulingPage() {
     bufferAfter: "15",
     bookingWindow: "30d",
     bookingQuestion: "",
+    bookingPageTheme: "simple" as BookingPageThemeId,
   });
   const [customHours, setCustomHours] = useState<DaySchedule[]>(
     DEFAULT_WORKING_HOURS.map((d) => ({ ...d })),
@@ -107,6 +114,7 @@ export default function SchedulingPage() {
       ...prev,
       eventName: type ? `${type.durationMinutes} min ${type.title}` : prev.eventName,
       duration: type ? String(type.durationMinutes) : prev.duration,
+      bookingPageTheme: "simple",
     }));
     setCreateOpen(false);
     setSetupOpen(true);
@@ -158,6 +166,7 @@ export default function SchedulingPage() {
         bufferAfterMinutes,
         bookingWindow: form.bookingWindow,
         bookingQuestion: form.bookingQuestion.trim() || undefined,
+        bookingPageTheme: normalizeBookingPageTheme(form.bookingPageTheme),
         weekSlots: sourceHours.map((h) => ({
           dayKey: h.day,
           enabled: h.enabled,
@@ -171,6 +180,7 @@ export default function SchedulingPage() {
           id: editingEventId,
           description: form.description.trim(),
           bookingQuestion: form.bookingQuestion.trim(),
+          bookingPageTheme: normalizeBookingPageTheme(form.bookingPageTheme),
         });
       } else {
         await createBookingEventType(data.session.access_token, payload);
@@ -224,6 +234,7 @@ export default function SchedulingPage() {
       bufferAfter: String(detail.bufferAfterMinutes),
       bookingWindow: detail.bookingWindow,
       bookingQuestion: detail.bookingQuestion ?? "",
+      bookingPageTheme: normalizeBookingPageTheme(detail.bookingPageTheme) as BookingPageThemeId,
     });
     setCustomHours(
       DEFAULT_WORKING_HOURS.map((defaultRow) => {
@@ -895,6 +906,45 @@ export default function SchedulingPage() {
                   placeholder="What should we focus on in this meeting?"
                 />
               </Field>
+
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Custom theme for booking page
+                </p>
+                <p className="mt-1 text-xs text-zinc-600">
+                  Guests see this style on your public link. Pick one theme — preview updates below.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {BOOKING_PAGE_THEME_OPTIONS.map((opt) => {
+                    const active = form.bookingPageTheme === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() =>
+                          setForm((s) => ({
+                            ...s,
+                            bookingPageTheme: opt.id,
+                          }))
+                        }
+                        className={[
+                          "rounded-lg border px-2.5 py-2 text-left transition",
+                          active
+                            ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] ring-1 ring-[var(--app-primary)]"
+                            : "border-zinc-200 bg-white hover:border-zinc-300",
+                        ].join(" ")}
+                      >
+                        <span className="block text-xs font-semibold text-zinc-900">{opt.label}</span>
+                        <span className="mt-0.5 block text-[10px] leading-snug text-zinc-500">{opt.hint}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">Live preview</p>
+                <div className="mt-2 max-w-sm">
+                  <BookingPageThemePreview themeId={form.bookingPageTheme} />
+                </div>
+              </div>
 
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Preview</p>

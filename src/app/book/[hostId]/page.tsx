@@ -1,21 +1,24 @@
 "use client";
 
-import {
-  ArrowLeftIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ClockIcon,
-  GlobeAltIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ClockIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import PhoneInput from "react-phone-input-2";
+
+import { BookingCalendarSelectByTemplate } from "@/components/booking/templates/BookingCalendarSelectByTemplate";
+import { getTemplateShell } from "@/lib/booking-page-templates";
 
 type BookingEventKind = "ONE_ON_ONE" | "GROUP" | "ROUND_ROBIN";
 
 type PublicBookingPayload = {
   host: { id: string; name: string };
-  event: { id: string; title: string; durationMinutes: number; kind: BookingEventKind };
+  event: {
+    id: string;
+    title: string;
+    durationMinutes: number;
+    kind: BookingEventKind;
+    bookingPageTheme?: string;
+  };
   availability: Array<{ dayOfWeek: number; enabled: boolean; startTime: string; endTime: string }>;
   bookedIntervals: Array<{ startsAt: string; endsAt: string }>;
   timezone: string;
@@ -274,32 +277,36 @@ export default function PublicBookingPage() {
     );
   }
 
+  const shell = getTemplateShell(data.event.bookingPageTheme);
+
   return (
-    <div className="flex min-h-screen w-full items-center justify-center px-4 py-6">
-      <div className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm md:grid-cols-[340px_1fr]">
-        <aside className="border-r border-zinc-200 p-8">
+    <div className={`flex min-h-screen w-full items-center justify-center px-4 py-6 ${shell.pageWrap}`}>
+      <div
+        className={`mx-auto grid w-full overflow-hidden rounded-2xl border ${shell.pageInner} ${shell.cardLayout} ${shell.card}`}
+      >
+        <aside className={shell.aside}>
         {step !== "select" && (
           <button
             type="button"
             onClick={() => setStep("select")}
-            className="mb-5 inline-flex items-center rounded-full border border-zinc-200 p-2 text-zinc-600 transition hover:bg-zinc-50"
+            className={`mb-5 inline-flex items-center rounded-full border p-2 transition ${shell.backBtn}`}
             aria-label="Back to date and time"
           >
             <ArrowLeftIcon className="h-4 w-4" />
           </button>
         )}
-        <p className="text-lg font-semibold text-zinc-800">{data.host.name}</p>
-        <h1 className="mt-1 text-4xl font-bold tracking-tight text-zinc-900">{data.event.title}</h1>
-        <p className="mt-6 inline-flex items-center gap-2 text-lg font-medium text-zinc-700">
+        <p className={`text-lg font-semibold ${shell.hostName}`}>{data.host.name}</p>
+        <h1 className={`mt-1 font-bold tracking-tight ${shell.eventTitle}`}>{data.event.title}</h1>
+        <p className={`mt-6 inline-flex items-center gap-2 text-lg font-medium ${shell.durationRow}`}>
           <ClockIcon className="h-5 w-5" />
           {data.event.durationMinutes} min
         </p>
         {selectedSlot && (
           <>
-            <p className="mt-5 text-sm font-medium text-zinc-700">
+            <p className={`mt-5 text-sm font-medium ${shell.slotWhen}`}>
               {selectedSlot.label}, {selectedSlotDateLabel}
             </p>
-            <p className="mt-2 inline-flex items-center gap-2 text-sm text-zinc-600">
+            <p className={`mt-2 inline-flex items-center gap-2 text-sm ${shell.slotTz}`}>
               <GlobeAltIcon className="h-4 w-4" />
               {timezone === "Asia/Kolkata"
                 ? "India Standard Time"
@@ -312,7 +319,7 @@ export default function PublicBookingPage() {
                 href={confirmedMeetingLink}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 inline-flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition ${shell.joinLink}`}
               >
                 <GlobeAltIcon className="h-4 w-4" />
                 Join meeting link
@@ -322,153 +329,54 @@ export default function PublicBookingPage() {
         )}
         </aside>
 
-        <section className="p-8">
+        <section className={shell.section}>
         {step === "select" && (
-          <>
-            <h2 className="mb-6 text-4xl font-bold tracking-tight text-zinc-900">Select a Date &amp; Time</h2>
-            <div className="grid gap-8 lg:grid-cols-[1fr_240px]">
-              <div>
-                <div className="mb-4 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-                    className="rounded-full p-2 text-zinc-600 transition hover:bg-zinc-100"
-                    aria-label="Previous month"
-                  >
-                    <ChevronLeftIcon className="h-5 w-5" />
-                  </button>
-                  <p className="text-2xl font-semibold text-zinc-900">{monthTitle(currentMonth)}</p>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-                    className="rounded-full p-2 text-zinc-600 transition hover:bg-zinc-100"
-                    aria-label="Next month"
-                  >
-                    <ChevronRightIcon className="h-5 w-5" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                  {WEEK_DAYS.map((w) => (
-                    <div key={w}>{w}</div>
-                  ))}
-                </div>
-                <div className="mt-2 grid grid-cols-7 gap-2">
-                  {calendarDays.map((date) => {
-                    const inMonth = date.getMonth() === currentMonth.getMonth();
-                    const canBook = inMonth && isDateBookable(date);
-                    const active = selectedDate ? sameDate(selectedDate, date) : false;
-                    return (
-                      <button
-                        key={date.toISOString()}
-                        type="button"
-                        onClick={() => {
-                          if (!canBook) return;
-                          setSelectedDate(new Date(date));
-                          setSelectedTimeIso(null);
-                        }}
-                        disabled={!canBook}
-                        className={[
-                          "h-12 rounded-full text-sm transition",
-                          !inMonth ? "text-zinc-300" : "",
-                          canBook ? "text-blue-700 hover:bg-blue-50" : "text-zinc-400",
-                          active ? "bg-blue-100 font-semibold ring-2 ring-blue-300" : "",
-                        ].join(" ")}
-                      >
-                        {date.getDate()}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-8">
-                  <p className="mb-2 text-sm font-semibold text-zinc-700">Time zone</p>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700">
-                    <GlobeAltIcon className="h-4 w-4" />
-                    <select
-                      value={timezone}
-                      onChange={(e) => setTimezone(e.target.value)}
-                      className="bg-transparent outline-none"
-                    >
-                      <option value="Asia/Kolkata">India Standard Time</option>
-                      <option value="Asia/Singapore">Singapore Time</option>
-                      <option value="UTC">UTC</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-3 text-lg font-semibold text-zinc-800">
-                  {selectedDate
-                    ? new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(
-                        selectedDate,
-                      )
-                    : "Pick a date"}
-                </p>
-                <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
-                  {!selectedDate && <p className="text-sm text-zinc-500">Choose a date first.</p>}
-                  {selectedDate && availableTimes.length === 0 && (
-                    <p className="text-sm text-zinc-500">No slots available for this day.</p>
-                  )}
-                  {selectedDate &&
-                    availableTimes.map((slot) => (
-                      <div key={slot.iso} className="grid grid-cols-[1fr_auto] gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeIso(slot.iso)}
-                          className={[
-                            "rounded-lg border px-3 py-2 text-sm font-semibold transition",
-                            selectedTimeIso === slot.iso
-                              ? "border-zinc-700 bg-zinc-700 text-white"
-                              : "border-blue-300 text-blue-700 hover:bg-blue-50",
-                          ].join(" ")}
-                        >
-                          {slot.label}
-                        </button>
-                        {selectedTimeIso === slot.iso && (
-                          <button
-                            type="button"
-                            onClick={() => setStep("details")}
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                          >
-                            Next
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-          </>
+          <BookingCalendarSelectByTemplate
+            templateId={data.event.bookingPageTheme}
+            currentMonth={currentMonth}
+            setCurrentMonth={setCurrentMonth}
+            monthTitle={monthTitle}
+            calendarDays={calendarDays}
+            weekDays={WEEK_DAYS}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            selectedTimeIso={selectedTimeIso}
+            setSelectedTimeIso={setSelectedTimeIso}
+            availableTimes={availableTimes}
+            timezone={timezone}
+            setTimezone={setTimezone}
+            isDateBookable={isDateBookable}
+            sameDate={sameDate}
+            onContinueToDetails={() => setStep("details")}
+          />
         )}
 
         {step === "details" && (
           <div className="max-w-xl">
-            <h2 className="mb-2 text-4xl font-bold tracking-tight text-zinc-900">Enter Details</h2>
-            <p className="mb-6 text-sm text-zinc-500">Complete this final step to schedule your event.</p>
+            <h2 className={`mb-2 text-4xl font-bold tracking-tight ${shell.h2}`}>Enter Details</h2>
+            <p className={`mb-6 text-sm ${shell.lead}`}>Complete this final step to schedule your event.</p>
 
             <label className="mb-3 block">
-              <span className="mb-1 block text-sm font-medium text-zinc-800">Name *</span>
+              <span className={`mb-1 block text-sm font-medium ${shell.label}`}>Name *</span>
               <input
                 value={form.guestName}
                 onChange={(e) => setForm((prev) => ({ ...prev, guestName: e.target.value }))}
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 ${shell.input}`}
               />
             </label>
 
             <label className="mb-3 block">
-              <span className="mb-1 block text-sm font-medium text-zinc-800">Email *</span>
+              <span className={`mb-1 block text-sm font-medium ${shell.label}`}>Email *</span>
               <input
                 type="email"
                 value={form.guestEmail}
                 onChange={(e) => setForm((prev) => ({ ...prev, guestEmail: e.target.value }))}
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 ${shell.input}`}
               />
             </label>
 
             <label className="mb-3 block">
-              <span className="mb-1 block text-sm font-medium text-zinc-800">Phone number *</span>
+              <span className={`mb-1 block text-sm font-medium ${shell.label}`}>Phone number *</span>
               <PhoneInput
                 country="in"
                 value={`${form.guestCountryCode.replace("+", "")}${form.guestPhone}`}
@@ -486,31 +394,31 @@ export default function PublicBookingPage() {
                 countryCodeEditable={false}
                 inputProps={{ name: "phone", required: true, placeholder: "Phone number" }}
                 containerClass="react-phone-input-container"
-                inputClass="!w-full !h-[42px] !rounded-lg !border-zinc-200 !bg-white !pl-14 !text-sm !text-zinc-900 focus:!border-blue-400 focus:!ring-2 focus:!ring-blue-100"
-                buttonClass="!border-zinc-200 !bg-white hover:!bg-zinc-50"
+                inputClass={shell.phoneInputClass}
+                buttonClass={shell.phoneButtonClass}
                 dropdownClass="!text-sm"
               />
             </label>
 
             <label className="mb-3 block">
-              <span className="mb-1 block text-sm font-medium text-zinc-800">Add guests (optional)</span>
+              <span className={`mb-1 block text-sm font-medium ${shell.label}`}>Add guests (optional)</span>
               <input
                 value={form.guests}
                 onChange={(e) => setForm((prev) => ({ ...prev, guests: e.target.value }))}
                 placeholder="comma separated emails"
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 ${shell.input}`}
               />
             </label>
 
             <label className="mb-3 block">
-              <span className="mb-1 block text-sm font-medium text-zinc-800">
+              <span className={`mb-1 block text-sm font-medium ${shell.label}`}>
                 Please share anything that will help prepare for our meeting
               </span>
               <textarea
                 rows={3}
                 value={form.notes}
                 onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 ${shell.input}`}
               />
             </label>
 
@@ -520,7 +428,7 @@ export default function PublicBookingPage() {
               type="button"
               disabled={submitting}
               onClick={handleSchedule}
-              className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+              className={`rounded-full px-5 py-2.5 text-sm font-semibold transition disabled:opacity-60 ${shell.scheduleBtn}`}
             >
               {submitting ? "Scheduling..." : "Schedule Event"}
             </button>
@@ -528,9 +436,9 @@ export default function PublicBookingPage() {
         )}
 
         {step === "confirmed" && (
-          <div className="max-w-xl rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-            <h2 className="text-2xl font-bold text-emerald-900">Your event is scheduled</h2>
-            <p className="mt-2 text-sm text-emerald-800">
+          <div className={`max-w-xl rounded-xl border p-5 ${shell.confirmedWrap}`}>
+            <h2 className={`text-2xl font-bold ${shell.confirmedTitle}`}>Your event is scheduled</h2>
+            <p className={`mt-2 text-sm ${shell.confirmedText}`}>
               Thanks {form.guestName || "there"}! We have booked your slot for {selectedSlot?.label} on{" "}
               {selectedSlotDateLabel}.
             </p>

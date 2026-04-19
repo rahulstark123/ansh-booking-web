@@ -60,6 +60,8 @@ model BookingEventType {
   /// e.g. 14d, 30d, 60d, 90d
   bookingWindow      String
   bookingQuestion    String?
+  /// Public /book/[host] layout template: simple | vintage | modern | compact | editorial
+  bookingPageTheme   String             @default("simple")
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt

@@ -19,6 +19,8 @@ export type CreateBookingEventTypeInput = {
   bufferAfterMinutes: number;
   bookingWindow: string;
   bookingQuestion?: string;
+  /** Public booking page layout: simple | vintage | modern | compact | editorial */
+  bookingPageTheme?: string;
   weekSlots: BookingWeekSlotInput[];
 };
 
@@ -35,6 +37,7 @@ export type BookingEventTypeDetail = {
   bufferAfterMinutes: number;
   bookingWindow: string;
   bookingQuestion: string;
+  bookingPageTheme: string;
   weekSlots: BookingWeekSlotInput[];
 };
 
