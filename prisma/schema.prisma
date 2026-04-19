@@ -61,7 +61,7 @@ model BookingEventType {
   bookingWindow      String
   bookingQuestion    String?
   /// Public /book/[host] layout template: simple | vintage | modern | compact | editorial
-  bookingPageTheme   String             @default("simple")
+  bookingPageTheme   String             @default("simple") @map("booking_page_theme")
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
