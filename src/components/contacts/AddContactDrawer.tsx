@@ -1,6 +1,5 @@
-"use client";
-
-import { CameraIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { motion, AnimatePresence } from "framer-motion";
+import { CameraIcon, XMarkIcon, UserPlusIcon, MapPinIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 import PhoneInput from "react-phone-input-2";
 
@@ -20,139 +19,209 @@ export function AddContactDrawer({
   onClose: () => void;
   onSave: () => void;
 }) {
-  if (!open) return null;
-
   const canSave = form.name.trim() && form.email.trim();
 
   return (
-    <>
-      <DrawerBackdrop onClick={onClose} aria-label="Close add contact panel" />
-      <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
-        <div className="mb-5 flex items-start justify-between">
-          <h2 className="text-2xl font-semibold text-zinc-900">Add Contact</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-            aria-label="Close"
+    <AnimatePresence>
+      {open && (
+        <>
+          <DrawerBackdrop onClick={onClose} aria-label="Close add contact panel" />
+          <motion.aside 
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto border-l border-zinc-200 bg-white p-8 shadow-2xl"
           >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
+            <div className="mb-10 flex items-start justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Database Entry</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">Add New Contact</h2>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-2xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700 active:scale-95"
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
 
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-zinc-200 text-zinc-500">
-            <CameraIcon className="h-5 w-5" />
-          </span>
-          <button
-            type="button"
-            className="rounded-full border border-[var(--app-primary)] px-3 py-1 text-sm font-medium text-[var(--app-primary)]"
-          >
-            Upload image
-          </button>
-        </div>
+            <div className="space-y-8 pb-32">
+              {/* Profile Section */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-6 rounded-3xl border border-zinc-100 bg-zinc-50/50 p-6 shadow-sm">
+                  <div className="relative group cursor-pointer">
+                    <div className="h-20 w-20 rounded-3xl bg-zinc-200 flex items-center justify-center border-2 border-white shadow-md transition-transform group-hover:scale-105">
+                      <CameraIcon className="h-8 w-8 text-zinc-500" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-lg bg-[var(--app-primary)] border-2 border-white flex items-center justify-center">
+                      <PlusIcon className="h-3 w-3 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Contact Avatar</h3>
+                    <p className="mt-1 text-xs font-medium text-zinc-500 leading-snug">Upload a professional photo or use a generated initial.</p>
+                  </div>
+                </div>
 
-        <div className="space-y-3">
-          <Field label="Full name" required>
-            <Input value={form.name} onChange={(v) => onChange({ ...form, name: v })} />
-          </Field>
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Identity Details</p>
+                  <Field label="Full name" required>
+                    <Input 
+                      value={form.name} 
+                      onChange={(v) => onChange({ ...form, name: v })} 
+                      placeholder="e.g. John Wick"
+                    />
+                  </Field>
 
-          <Field label="Email" required>
-            <Input type="email" value={form.email} onChange={(v) => onChange({ ...form, email: v })} />
-          </Field>
+                  <Field label="Email address" required>
+                    <Input 
+                      type="email" 
+                      value={form.email} 
+                      onChange={(v) => onChange({ ...form, email: v })} 
+                      placeholder="john@example.com"
+                    />
+                  </Field>
 
-          <Field label="Phone" optional>
-            <PhoneInput
-              country="in"
-              value={`${form.phoneCountryCode.replace("+", "")}${form.phoneNumber}`}
-              onChange={(value, data: { dialCode?: string }) => {
-                const dialCode = data?.dialCode ?? "";
-                const nextNumber = dialCode && value.startsWith(dialCode) ? value.slice(dialCode.length) : value;
-                onChange({
-                  ...form,
-                  phoneCountryCode: dialCode ? `+${dialCode}` : form.phoneCountryCode,
-                  phoneNumber: nextNumber,
-                });
-              }}
-              enableSearch
-              countryCodeEditable={false}
-              inputProps={{ name: "phone", placeholder: "Phone number" }}
-              containerClass="react-phone-input-container"
-              inputClass="!w-full !h-[42px] !rounded-lg !border-zinc-200 !bg-white !pl-14 !text-sm !text-zinc-900 focus:!border-[var(--app-focus-border)] focus:!ring-2 focus:!ring-[var(--app-ring)]"
-              buttonClass="!border-zinc-200 !bg-white hover:!bg-zinc-50"
-              dropdownClass="!text-sm"
-            />
-          </Field>
+                  <Field label="Phone number">
+                    <PhoneInput
+                      country="in"
+                      value={`${form.phoneCountryCode.replace("+", "")}${form.phoneNumber}`}
+                      onChange={(value, data: { dialCode?: string }) => {
+                        const dialCode = data?.dialCode ?? "";
+                        const nextNumber = dialCode && value.startsWith(dialCode) ? value.slice(dialCode.length) : value;
+                        onChange({
+                          ...form,
+                          phoneCountryCode: dialCode ? `+${dialCode}` : form.phoneCountryCode,
+                          phoneNumber: nextNumber,
+                        });
+                      }}
+                      enableSearch
+                      countryCodeEditable={false}
+                      inputProps={{ name: "phone", placeholder: "Phone number" }}
+                      containerClass="react-phone-input-container"
+                      inputClass="!w-full !h-[50px] !rounded-2xl !border-zinc-200 !bg-white !pl-16 !text-sm !font-bold !text-zinc-900 focus:!border-[var(--app-primary)] focus:!ring-4 focus:!ring-[var(--app-primary-soft)] transition-all"
+                      buttonClass="!border-zinc-200 !bg-white hover:!bg-zinc-50 !rounded-l-2xl !pl-2"
+                      dropdownClass="!text-sm !rounded-xl !shadow-2xl !border-zinc-200"
+                    />
+                  </Field>
+                </div>
+              </section>
 
-          <Field label="Job title" optional>
-            <Input value={form.jobTitle} onChange={(v) => onChange({ ...form, jobTitle: v })} />
-          </Field>
+              {/* Professional Section */}
+              <section className="space-y-6 rounded-3xl bg-zinc-50 p-6 ring-1 ring-zinc-200">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Professional Context</p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Job title">
+                    <Input 
+                      value={form.jobTitle} 
+                      onChange={(v) => onChange({ ...form, jobTitle: v })} 
+                      placeholder="Product Lead"
+                    />
+                  </Field>
+                  <Field label="Company">
+                    <Input 
+                      value={form.company} 
+                      onChange={(v) => onChange({ ...form, company: v })} 
+                      placeholder="Continental"
+                    />
+                  </Field>
+                </div>
 
-          <Field label="Company" optional>
-            <Input value={form.company} onChange={(v) => onChange({ ...form, company: v })} />
-          </Field>
+                <Field label="LinkedIn Profile">
+                  <Input 
+                    value={form.linkedin} 
+                    onChange={(v) => onChange({ ...form, linkedin: v })} 
+                    placeholder="linkedin.com/in/username"
+                  />
+                </Field>
+              </section>
 
-          <Field label="LinkedIn" optional>
-            <Input value={form.linkedin} onChange={(v) => onChange({ ...form, linkedin: v })} />
-          </Field>
+              {/* Location Section */}
+              <section className="space-y-6">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Geographic Info</p>
+                <Field label="Time zone">
+                  <Input 
+                    value={form.timezone} 
+                    onChange={(v) => onChange({ ...form, timezone: v })} 
+                    placeholder="UTC+05:30 (India)"
+                  />
+                </Field>
 
-          <Field label="Time zone" optional>
-            <Input value={form.timezone} onChange={(v) => onChange({ ...form, timezone: v })} />
-          </Field>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-1">
+                    <Field label="City">
+                      <Input 
+                        value={form.city} 
+                        onChange={(v) => onChange({ ...form, city: v })} 
+                        placeholder="NYC"
+                      />
+                    </Field>
+                  </div>
+                  <div className="col-span-1">
+                    <Field label="State">
+                      <Input 
+                        value={form.state} 
+                        onChange={(v) => onChange({ ...form, state: v })} 
+                        placeholder="NY"
+                      />
+                    </Field>
+                  </div>
+                  <div className="col-span-1">
+                    <Field label="Country">
+                      <Input 
+                        value={form.country} 
+                        onChange={(v) => onChange({ ...form, country: v })} 
+                        placeholder="USA"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              </section>
+            </div>
 
-          <Field label="Country" optional>
-            <Input value={form.country} onChange={(v) => onChange({ ...form, country: v })} />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="City" optional>
-              <Input value={form.city} onChange={(v) => onChange({ ...form, city: v })} />
-            </Field>
-            <Field label="State" optional>
-              <Input value={form.state} onChange={(v) => onChange({ ...form, state: v })} />
-            </Field>
-          </div>
-        </div>
-
-        <div className="sticky bottom-0 mt-5 flex items-center justify-end gap-2 border-t border-zinc-100 bg-white pt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={!canSave}
-            className="rounded-full bg-[var(--app-primary)] px-4 py-2 text-sm font-medium text-[var(--app-primary-foreground)] transition hover:bg-[var(--app-primary-hover)] disabled:opacity-40"
-          >
-            Save contact
-          </button>
-        </div>
-      </aside>
-    </>
+            {/* Sticky Actions */}
+            <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-zinc-100 p-8 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-3 text-sm font-bold text-zinc-500 transition hover:text-zinc-900"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={!canSave}
+                className="rounded-2xl bg-[var(--app-primary)] px-10 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-[var(--app-primary-soft)] transition-all hover:bg-[var(--app-primary-hover)] active:scale-95 disabled:opacity-40"
+              >
+                Save Contact
+              </button>
+            </div>
+          </motion.aside>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
 
 function Field({
   label,
-  optional,
   required,
   children,
 }: {
   label: string;
-  optional?: boolean;
   required?: boolean;
   children: ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-zinc-800">
+      <span className="mb-2 block text-xs font-black uppercase tracking-wider text-zinc-600">
         {label}
-        {optional && <span className="ml-1 text-zinc-500">(Optional)</span>}
-        {required && <span className="ml-1 text-rose-500">*</span>}
+        {required && <span className="ml-1 text-rose-500 font-bold">*</span>}
       </span>
       {children}
     </label>
@@ -176,7 +245,15 @@ function Input({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-[var(--app-focus-border)] focus:ring-2 focus:ring-[var(--app-ring)]"
+      className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none transition-all focus:border-[var(--app-primary)] focus:ring-4 focus:ring-[var(--app-primary-soft)]"
     />
+  );
+}
+
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
   );
 }

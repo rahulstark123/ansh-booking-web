@@ -109,12 +109,12 @@ export function SiteHeader() {
           >
             Login
           </Link>
-          <button
-            type="button"
+          <Link
+            href="/login"
             className="rounded-full bg-[#2a38ff] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(42,56,255,0.35)] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] sm:px-5"
           >
             Get Started
-          </button>
+          </Link>
         </div>
       </div>
     </header>

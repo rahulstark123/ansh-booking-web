@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import { Reveal } from "@/components/Reveal";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -210,19 +211,23 @@ export function PricingSection() {
                     </li>
                   ))}
                 </ul>
-                <button
-                  type="button"
-                  disabled={plan.featured && paying}
-                  onClick={plan.featured ? () => void handleGoPro() : undefined}
-                  className={[
-                    "mt-12 w-full rounded-full py-4 text-lg font-semibold transition-all duration-200 hover:opacity-95 active:scale-[0.99]",
-                    plan.featured
-                      ? "bg-[#2a38ff] text-white shadow-[0_8px_24px_rgba(42,56,255,0.35)] hover:shadow-[0_12px_28px_rgba(42,56,255,0.42)] disabled:cursor-not-allowed disabled:opacity-70"
-                      : "bg-[#e8eeff] text-[#2a38ff] hover:bg-[#dce4ff]",
-                  ].join(" ")}
-                >
-                  {plan.featured && paying ? "Opening checkout..." : plan.cta}
-                </button>
+                {plan.featured ? (
+                  <button
+                    type="button"
+                    disabled={paying}
+                    onClick={() => void handleGoPro()}
+                    className="mt-12 w-full rounded-full bg-[#2a38ff] py-4 text-lg font-semibold text-white shadow-[0_8px_24px_rgba(42,56,255,0.35)] transition-all duration-200 hover:opacity-95 hover:shadow-[0_12px_28px_rgba(42,56,255,0.42)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {paying ? "Opening checkout..." : plan.cta}
+                  </button>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="mt-12 block w-full rounded-full bg-[#e8eeff] py-4 text-center text-lg font-semibold text-[#2a38ff] transition-all duration-200 hover:bg-[#dce4ff] active:scale-[0.99]"
+                  >
+                    {plan.cta}
+                  </Link>
+                )}
               </article>
             </Reveal>
           ))}

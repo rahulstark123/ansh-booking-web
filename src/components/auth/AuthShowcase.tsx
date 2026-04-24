@@ -87,7 +87,7 @@ export function AuthShowcase() {
             <h2 className="text-5xl md:text-6xl font-bold text-white tracking-tight leading-[1.05] mb-6">
               Elevate your <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">
-                Booking Experience
+                Booking Experience with ANSH
               </span>
             </h2>
             

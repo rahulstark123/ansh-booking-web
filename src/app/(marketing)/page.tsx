@@ -1,4 +1,5 @@
 import { BookingCalendarMockup } from "@/components/BookingCalendarMockup";
+import { GlobalBanner } from "@/components/GlobalBanner";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { Reveal } from "@/components/Reveal";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -172,6 +173,9 @@ export default function Home() {
       <SiteHeader />
 
       <main className="relative z-[1] w-full overflow-x-clip pt-[calc(7.25rem+env(safe-area-inset-top,0px))] pb-16 sm:pt-[calc(7.75rem+env(safe-area-inset-top,0px))] md:pt-[calc(9.75rem+env(safe-area-inset-top,0px))] md:pb-20 lg:pb-24 xl:pb-28">
+        <div className="app-container mb-8">
+          <GlobalBanner />
+        </div>
         <div className="app-container grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-12 xl:gap-16">
           <section className="flex flex-col items-start text-left">
             <Reveal className="w-full max-w-xl">
@@ -189,12 +193,12 @@ export default function Home() {
                 smoother.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
-                <button
-                  type="button"
+                <Link
+                  href="/login"
                   className="rounded-full bg-[#2a38ff] px-7 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(42,56,255,0.22)] transition-transform duration-200 hover:scale-[1.02] hover:shadow-[0_12px_28px_rgba(42,56,255,0.28)] active:scale-[0.98] sm:px-8 sm:py-3 sm:text-base"
                 >
                   Get Started
-                </button>
+                </Link>
                 <a
                   href="#features"
                   className="inline-flex items-center justify-center rounded-full border border-[#c9d4f8] bg-white px-7 py-2.5 text-sm font-semibold text-[#2a38ff] transition-all duration-200 hover:border-[#2a38ff]/30 hover:bg-[#f4f7ff] hover:shadow-[0_6px_20px_rgba(42,56,255,0.1)] sm:px-8 sm:py-3 sm:text-base"

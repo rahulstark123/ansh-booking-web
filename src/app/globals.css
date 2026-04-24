@@ -534,3 +534,46 @@ html[data-app-mode="dark"]:not([data-marketing-page="true"]) .hover\:bg-zinc-100
     transform: none;
   }
 }
+
+/* Custom Scrollbar for Elite Templates */
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-slate-200 hover:bg-slate-300;
+  }
+}
+
+/* Elite Phone Input Overrides */
+.elite-phone-wrap .react-phone-input-container {
+  @apply !w-full !rounded-xl !border !border-slate-100 !bg-white !shadow-sm transition-all focus-within:!ring-4 focus-within:!ring-violet-50 focus-within:!border-violet-200;
+}
+
+.elite-phone-wrap .form-control {
+  @apply !w-full !h-12 !border-none !bg-transparent !text-sm !font-bold !text-slate-900 !pl-14;
+}
+
+.elite-phone-wrap .flag-dropdown {
+  @apply !bg-transparent !border-none !rounded-l-xl !px-2;
+}
+
+.elite-phone-wrap .selected-flag {
+  @apply !bg-transparent !rounded-l-xl hover:!bg-slate-50;
+}
+
+.elite-phone-wrap .country-list {
+  @apply !mt-2 !rounded-xl !shadow-2xl !border-slate-100 !text-sm !font-medium;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s infinite linear;
+}

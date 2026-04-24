@@ -27,6 +27,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { BookingPageThemePreview } from "@/components/booking/BookingPageThemePreview";
+import { ChooseEventTypeMenu } from "@/components/dashboard/ChooseEventTypeMenu";
 import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -140,6 +141,13 @@ export default function SchedulingPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingEvent, setDeletingEvent] = useState(false);
   const [pendingDeleteMeeting, setPendingDeleteMeeting] = useState<ScheduledMeeting | null>(null);
+
+  useEffect(() => {
+    if (selected) {
+      chooseType(selected as SchedulingEventTypeId);
+      setSelected(null);
+    }
+  }, [selected, setSelected]);
 
   function chooseType(id: SchedulingEventTypeId) {
     setSetupMode("create");
@@ -539,36 +547,7 @@ export default function SchedulingPage() {
                   <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500">Choose Event Type</h3>
                 </div>
 
-                <div className="p-2">
-                  {SCHEDULING_EVENT_TYPES.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => chooseType(item.id)}
-                      className="group w-full rounded-xl p-3 text-left transition-all hover:bg-[var(--app-primary-soft)]"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={[
-                            "inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all group-hover:scale-110",
-                            selected === item.id
-                              ? "bg-[var(--app-primary)] text-white"
-                              : "bg-zinc-100 text-zinc-500 group-hover:bg-white group-hover:text-[var(--app-primary)] group-hover:shadow-sm",
-                          ].join(" ")}
-                        >
-                          <EventTypeIcon id={item.id} />
-                        </span>
-                        <div>
-                          <p className="text-sm font-bold text-zinc-900">{item.title}</p>
-                          <p className="text-xs font-medium text-zinc-500 group-hover:text-[var(--app-primary-soft-text)]">
-                            {item.hostLabel} → {item.inviteeLabel}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="mt-3 text-xs leading-relaxed text-zinc-600 font-medium">{item.description}</p>
-                    </button>
-                  ))}
-                </div>
+                <ChooseEventTypeMenu onSelect={chooseType} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -1027,216 +1006,252 @@ export default function SchedulingPage() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 z-50 w-full max-w-xl overflow-y-auto border-l border-zinc-200 bg-white p-8 shadow-2xl"
+              className="fixed inset-y-0 right-0 z-50 w-full max-w-xl border-l border-zinc-200 bg-white shadow-2xl flex flex-col"
             >
-              <div className="mb-10 flex items-start justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{selectedType.title} Template</p>
-                  <h3 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">
-                    {setupMode === "edit" ? "Modify Event" : "Configure New Event"}
-                  </h3>
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div className="mb-10 flex items-start justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{selectedType.title} Template</p>
+                    <h3 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">
+                      {setupMode === "edit" ? "Modify Event" : "Configure New Event"}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSetupOpen(false)}
+                    className="rounded-2xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSetupOpen(false)}
-                  className="rounded-2xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
-              </div>
 
-              <div className="space-y-8 pb-32">
-                <section className="space-y-6">
-                  <Field label="What is this event called?" required>
-                    <Input
-                      value={form.eventName}
-                      onChange={(v) => setForm((s) => ({ ...s, eventName: v }))}
-                      placeholder="e.g. 30 min Discovery call"
-                    />
-                  </Field>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Duration">
-                      <Select
-                        value={form.duration}
-                        onChange={(v) => setForm((s) => ({ ...s, duration: v }))}
-                        options={[
-                          { value: "15", label: "15 mins" },
-                          { value: "30", label: "30 mins" },
-                          { value: "45", label: "45 mins" },
-                          { value: "60", label: "60 mins" },
-                        ]}
+                <div className="space-y-8">
+                  <section className="space-y-6">
+                    <Field label="What is this event called?" required>
+                      <Input
+                        value={form.eventName}
+                        onChange={(v) => setForm((s) => ({ ...s, eventName: v }))}
+                        placeholder="e.g. 30 min Discovery call"
                       />
                     </Field>
-                    <Field label="Meeting Platform">
-                      <Select
-                        value={form.location}
-                        onChange={(v) => setForm((s) => ({ ...s, location: v }))}
-                        options={[
-                          { value: "google-meet", label: "Google Meet" },
-                          { value: "zoom", label: "Zoom" },
-                          { value: "phone", label: "Phone call" },
-                          { value: "in-person", label: "In person" },
-                        ]}
-                      />
-                    </Field>
-                  </div>
 
-                  <Field label="Instructions for Invitee">
-                    <TextArea
-                      value={form.description}
-                      onChange={(v) => setForm((s) => ({ ...s, description: v }))}
-                      placeholder="Add context, agenda, or instructions for invitees."
-                    />
-                  </Field>
-                </section>
-
-                <section className="space-y-6 rounded-3xl bg-zinc-50 p-6 ring-1 ring-zinc-200">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Scheduling Logic</p>
-                  
-                  <Field label="Availability Schedule">
-                    <Select
-                      value={form.availability}
-                      onChange={(v) => setForm((s) => ({ ...s, availability: v }))}
-                      options={[
-                        { value: "working-hours", label: "Default working hours" },
-                        { value: "weekday-mornings", label: "Weekday mornings" },
-                        { value: "custom", label: "Custom schedule" },
-                      ]}
-                    />
-                  </Field>
-
-                  <div className="space-y-2">
-                    {(form.availability === "custom" ? customHours : DEFAULT_WORKING_HOURS).map((row, idx) => (
-                      <div key={row.day} className="grid grid-cols-[60px_1fr_14px_1fr] items-center gap-3">
-                        <span className="text-xs font-black text-zinc-900">{row.day}</span>
-                        <input
-                          type="time"
-                          value={row.start}
-                          disabled={!row.enabled || form.availability !== "custom"}
-                          onChange={(e) =>
-                            setCustomHours((prev) =>
-                              prev.map((d, i) => (i === idx ? { ...d, start: e.target.value } : d)),
-                            )
-                          }
-                          className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-800 shadow-sm disabled:opacity-40"
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Duration">
+                        <Select
+                          value={form.duration}
+                          onChange={(v) => setForm((s) => ({ ...s, duration: v }))}
+                          options={[
+                            { value: "15", label: "15 mins" },
+                            { value: "30", label: "30 mins" },
+                            { value: "45", label: "45 mins" },
+                            { value: "60", label: "60 mins" },
+                          ]}
                         />
-                        <span className="text-zinc-400 text-center">-</span>
-                        <input
-                          type="time"
-                          value={row.end}
-                          disabled={!row.enabled || form.availability !== "custom"}
-                          onChange={(e) =>
-                            setCustomHours((prev) =>
-                              prev.map((d, i) => (i === idx ? { ...d, end: e.target.value } : d)),
-                            )
-                          }
-                          className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-800 shadow-sm disabled:opacity-40"
+                      </Field>
+                      <Field label="Meeting Platform">
+                        <Select
+                          value={form.location}
+                          onChange={(v) => setForm((s) => ({ ...s, location: v }))}
+                          options={[
+                            { value: "google-meet", label: "Google Meet" },
+                            { value: "zoom", label: "Zoom" },
+                            { value: "phone", label: "Phone call" },
+                            { value: "in-person", label: "In person" },
+                          ]}
                         />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <Field label="Notice">
-                      <Select
-                        value={form.minNotice}
-                        onChange={(v) => setForm((s) => ({ ...s, minNotice: v }))}
-                        options={[
-                          { value: "1h", label: "1h" },
-                          { value: "4h", label: "4h" },
-                          { value: "12h", label: "12h" },
-                          { value: "24h", label: "24h" },
-                        ]}
-                      />
-                    </Field>
-                    <Field label="Buf. Pre">
-                      <Select
-                        value={form.bufferBefore}
-                        onChange={(v) => setForm((s) => ({ ...s, bufferBefore: v }))}
-                        options={[{ value: "0", label: "0m" }, { value: "15", label: "15m" }, { value: "30", label: "30m" }]}
-                      />
-                    </Field>
-                    <Field label="Buf. Post">
-                      <Select
-                        value={form.bufferAfter}
-                        onChange={(v) => setForm((s) => ({ ...s, bufferAfter: v }))}
-                        options={[{ value: "0", label: "0m" }, { value: "15", label: "15m" }, { value: "30", label: "30m" }]}
-                      />
-                    </Field>
-                  </div>
-                </section>
-
-                <section className="space-y-6">
-                  <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Accept Payments</h3>
-                        <p className="mt-1 text-xs font-medium text-zinc-500">Collect fees before booking confirmation.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setForm((s) => ({ ...s, paymentEnabled: !s.paymentEnabled }))}
-                        className={[
-                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors",
-                          form.paymentEnabled ? "bg-[var(--app-primary)]" : "bg-zinc-300"
-                        ].join(" ")}
-                      >
-                        <span className={[
-                          "h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm",
-                          form.paymentEnabled ? "translate-x-5" : "translate-x-1"
-                        ].join(" ")} />
-                      </button>
+                      </Field>
                     </div>
 
-                    {form.paymentEnabled && (
-                      <div className="mt-8 space-y-4 pt-6 border-t border-zinc-100">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <Field label="Price (INR)">
-                            <Input
-                              value={form.paymentAmountRupees}
-                              onChange={(v) => setForm((s) => ({ ...s, paymentAmountRupees: v.replace(/[^\d.]/g, "") }))}
-                              placeholder="500"
-                              inputMode="decimal"
-                            />
-                          </Field>
-                          <Field label="Checkout Label">
-                            <Input
-                              value={form.paymentLabel}
-                              onChange={(v) => setForm((s) => ({ ...s, paymentLabel: v }))}
-                              placeholder="e.g. Service Fee"
-                            />
-                          </Field>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    <Field label="Instructions for Invitee">
+                      <TextArea
+                        value={form.description}
+                        onChange={(v) => setForm((s) => ({ ...s, description: v }))}
+                        placeholder="Add context, agenda, or instructions for invitees."
+                      />
+                    </Field>
+                  </section>
 
-                  <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Page Aesthetics</p>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      {BOOKING_PAGE_THEME_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setForm((s) => ({ ...s, bookingPageTheme: opt.id }))}
-                          className={[
-                            "rounded-2xl border p-4 text-left transition-all",
-                            form.bookingPageTheme === opt.id
-                              ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] ring-2 ring-[var(--app-primary)]"
-                              : "border-zinc-100 bg-zinc-50 hover:border-zinc-200"
-                          ].join(" ")}
-                        >
-                          <span className="block text-xs font-black text-zinc-900">{opt.label}</span>
-                          <span className="mt-1 block text-[10px] font-medium text-zinc-500 leading-snug">{opt.hint}</span>
-                        </button>
+                  <section className="space-y-6 rounded-3xl bg-zinc-50 p-6 ring-1 ring-zinc-200">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Scheduling Logic</p>
+                    
+                    <Field label="Availability Schedule">
+                      <Select
+                        value={form.availability}
+                        onChange={(v) => setForm((s) => ({ ...s, availability: v }))}
+                        options={[
+                          { value: "working-hours", label: "Default working hours" },
+                          { value: "weekday-mornings", label: "Weekday mornings" },
+                          { value: "custom", label: "Custom schedule" },
+                        ]}
+                      />
+                    </Field>
+
+                    <div className="space-y-2">
+                      {(form.availability === "custom" ? customHours : DEFAULT_WORKING_HOURS).map((row, idx) => (
+                        <div key={row.day} className="grid grid-cols-[60px_1fr_14px_1fr] items-center gap-3">
+                          <span className="text-xs font-black text-zinc-900">{row.day}</span>
+                          <input
+                            type="time"
+                            value={row.start}
+                            disabled={!row.enabled || form.availability !== "custom"}
+                            onChange={(e) =>
+                              setCustomHours((prev) =>
+                                prev.map((d, i) => (i === idx ? { ...d, start: e.target.value } : d)),
+                              )
+                            }
+                            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-800 shadow-sm disabled:opacity-40"
+                          />
+                          <span className="text-zinc-400 text-center">-</span>
+                          <input
+                            type="time"
+                            value={row.end}
+                            disabled={!row.enabled || form.availability !== "custom"}
+                            onChange={(e) =>
+                              setCustomHours((prev) =>
+                                prev.map((d, i) => (i === idx ? { ...d, end: e.target.value } : d)),
+                              )
+                            }
+                            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-800 shadow-sm disabled:opacity-40"
+                          />
+                        </div>
                       ))}
                     </div>
-                  </div>
-                </section>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <Field label="Notice">
+                        <Select
+                          value={form.minNotice}
+                          onChange={(v) => setForm((s) => ({ ...s, minNotice: v }))}
+                          options={[
+                            { value: "1h", label: "1h" },
+                            { value: "4h", label: "4h" },
+                            { value: "12h", label: "12h" },
+                            { value: "24h", label: "24h" },
+                          ]}
+                        />
+                      </Field>
+                      <Field label="Buf. Pre">
+                        <Select
+                          value={form.bufferBefore}
+                          onChange={(v) => setForm((s) => ({ ...s, bufferBefore: v }))}
+                          options={[{ value: "0", label: "0m" }, { value: "15", label: "15m" }, { value: "30", label: "30m" }]}
+                        />
+                      </Field>
+                      <Field label="Buf. Post">
+                        <Select
+                          value={form.bufferAfter}
+                          onChange={(v) => setForm((s) => ({ ...s, bufferAfter: v }))}
+                          options={[{ value: "0", label: "0m" }, { value: "15", label: "15m" }, { value: "30", label: "30m" }]}
+                        />
+                      </Field>
+                    </div>
+                  </section>
+
+                  <section className="space-y-6">
+                    <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Accept Payments</h3>
+                          <p className="mt-1 text-xs font-medium text-zinc-500">Collect fees before booking confirmation.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setForm((s) => ({ ...s, paymentEnabled: !s.paymentEnabled }))}
+                          className={[
+                            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors",
+                            form.paymentEnabled ? "bg-[var(--app-primary)]" : "bg-zinc-300"
+                          ].join(" ")}
+                        >
+                          <span className={[
+                            "h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm",
+                            form.paymentEnabled ? "translate-x-5" : "translate-x-1"
+                          ].join(" ")} />
+                        </button>
+                      </div>
+                      {form.paymentEnabled && (
+                        <div className="mt-8 space-y-6 pt-6 border-t border-zinc-100">
+                          <Field label="Payment Provider">
+                            <div className="flex gap-3">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-2 rounded-xl border border-[var(--app-primary)] bg-[var(--app-primary-soft)] px-4 py-2.5 text-xs font-black uppercase tracking-widest text-[var(--app-primary-soft-text)] shadow-sm"
+                              >
+                                <div className="h-2 w-2 rounded-full bg-[var(--app-primary)] animate-pulse" />
+                                Razorpay
+                              </button>
+                              <button
+                                type="button"
+                                disabled
+                                className="inline-flex items-center gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-zinc-300 opacity-50 cursor-not-allowed"
+                              >
+                                Stripe (Coming Soon)
+                              </button>
+                            </div>
+                          </Field>
+
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <Field label="Price (INR)" required>
+                              <Input
+                                value={form.paymentAmountRupees}
+                                onChange={(v) => setForm((s) => ({ ...s, paymentAmountRupees: v.replace(/[^\d.]/g, "") }))}
+                                placeholder="500"
+                                inputMode="decimal"
+                              />
+                            </Field>
+                            <Field label="Checkout Label" required>
+                              <Input
+                                value={form.paymentLabel}
+                                onChange={(v) => setForm((s) => ({ ...s, paymentLabel: v }))}
+                                placeholder="e.g. Service Fee"
+                              />
+                            </Field>
+                          </div>
+                          
+                          <p className="text-[10px] font-bold text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-100 leading-relaxed">
+                            Note: Ensure you have connected your Razorpay keys in the Integrations tab to accept live payments.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Page Aesthetics</p>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        {BOOKING_PAGE_THEME_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setForm((s) => ({ ...s, bookingPageTheme: opt.id }))}
+                            className={[
+                              "rounded-2xl border p-4 text-left transition-all",
+                              form.bookingPageTheme === opt.id
+                                ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] ring-2 ring-[var(--app-primary)]"
+                                : "border-zinc-100 bg-zinc-50 hover:border-zinc-200"
+                            ].join(" ")}
+                          >
+                            <span className="block text-xs font-black text-zinc-900">{opt.label}</span>
+                            <span className="mt-1 block text-[10px] font-medium text-zinc-500 leading-snug">{opt.hint}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="mt-8 rounded-2xl border border-dashed border-zinc-200 p-6 bg-zinc-50/50">
+                        <div className="flex items-center justify-between mb-4">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Live Preview</p>
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-600 ring-1 ring-emerald-100">
+                            <div className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                            Dynamic
+                          </span>
+                        </div>
+                        <div className="mx-auto max-w-[240px]">
+                          <BookingPageThemePreview themeId={form.bookingPageTheme} />
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
               </div>
 
-              <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-zinc-100 p-8 flex items-center justify-end gap-3">
+              <div className="shrink-0 bg-white/80 backdrop-blur-xl border-t border-zinc-100 p-8 flex items-center justify-end gap-3 shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
                 <button
                   type="button"
                   onClick={() => setSetupOpen(false)}

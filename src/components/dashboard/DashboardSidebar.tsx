@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarIcon,
@@ -47,8 +47,20 @@ export function DashboardSidebar() {
   const collapsed = useDashboardUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useDashboardUiStore((s) => s.toggleSidebar);
   const openNewBookingModal = useDashboardUiStore((s) => s.openNewBookingModal);
+  const setSidebarCollapsed = useDashboardUiStore((s) => s.setSidebarCollapsed);
   const billingActive = navActive(pathname, BILLING_HREF);
   const settingsActive = navActive(pathname, SETTINGS_HREF);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1000) {
+        setSidebarCollapsed(true);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [setSidebarCollapsed]);
 
   return (
     <>
@@ -200,21 +212,23 @@ export function DashboardSidebar() {
           </button>
 
           {/* Toggle Sidebar Button */}
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="mt-4 flex h-10 w-full items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-600"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? (
-              <ChevronRightIcon className="h-4 w-4" />
-            ) : (
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest">
-                <ChevronLeftIcon className="h-3.5 w-3.5" />
-                <span>Collapse</span>
-              </div>
-            )}
-          </button>
+          <div className="hidden min-[1000px]:block">
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="mt-4 flex h-10 w-full items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-600"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? (
+                <ChevronRightIcon className="h-4 w-4" />
+              ) : (
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest">
+                  <ChevronLeftIcon className="h-3.5 w-3.5" />
+                  <span>Collapse</span>
+                </div>
+              )}
+            </button>
+          </div>
         </div>
       </motion.aside>
       <AppearanceModal open={appearanceOpen} onClose={() => setAppearanceOpen(false)} />
