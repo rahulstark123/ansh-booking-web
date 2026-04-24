@@ -1,10 +1,15 @@
 import { BookingCalendarMockup } from "@/components/BookingCalendarMockup";
-import { GlobalBanner } from "@/components/GlobalBanner";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { Reveal } from "@/components/Reveal";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WhoCanBookMarquee } from "@/components/WhoCanBookMarquee";
+import { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "ANSH Bookings | Bharat's #1 Scheduling Platform",
+  description: "The simplest way to manage appointments for doctors, consultants, and businesses in India. Get your custom booking link and automate your calendar today.",
+};
 
 function IconCalendar({ className }: { className?: string }) {
   return (
@@ -173,9 +178,6 @@ export default function Home() {
       <SiteHeader />
 
       <main className="relative z-[1] w-full overflow-x-clip pt-[calc(7.25rem+env(safe-area-inset-top,0px))] pb-16 sm:pt-[calc(7.75rem+env(safe-area-inset-top,0px))] md:pt-[calc(9.75rem+env(safe-area-inset-top,0px))] md:pb-20 lg:pb-24 xl:pb-28">
-        <div className="app-container mb-8">
-          <GlobalBanner />
-        </div>
         <div className="app-container grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-12 xl:gap-16">
           <section className="flex flex-col items-start text-left">
             <Reveal className="w-full max-w-xl">
