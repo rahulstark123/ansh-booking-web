@@ -2,9 +2,12 @@
 
 import {
   ArrowPathIcon,
+  ArrowUpRightIcon,
   BanknotesIcon,
   CalendarDaysIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ClockIcon,
   EllipsisHorizontalIcon,
   LinkIcon,
@@ -16,10 +19,12 @@ import {
   UserIcon,
   UserGroupIcon,
   XMarkIcon,
+  RocketLaunchIcon,
 } from "@heroicons/react/24/outline";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { BookingPageThemePreview } from "@/components/booking/BookingPageThemePreview";
 import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
@@ -98,6 +103,7 @@ export default function SchedulingPage() {
   const total = meetingsResponse?.total ?? 0;
   const selected = useDashboardUiStore((s) => s.lastEventTypeChoice);
   const setSelected = useDashboardUiStore((s) => s.setLastEventTypeChoice);
+  const selectedType = SCHEDULING_EVENT_TYPES.find((x) => x.id === selected) ?? SCHEDULING_EVENT_TYPES[0];
   const [createOpen, setCreateOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupMode, setSetupMode] = useState<"create" | "edit">("create");
@@ -484,806 +490,773 @@ export default function SchedulingPage() {
       cancelled = true;
     };
   }, [detailMeeting]);
+  const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
 
-  const selectedType = SCHEDULING_EVENT_TYPES.find((x) => x.id === selected) ?? null;
+  const filteredMeetings = meetings.filter((m) => {
+    if (filter === "all") return true;
+    if (filter === "active") return m.status === "Upcoming";
+    if (filter === "inactive") return m.status !== "Upcoming";
+    return true;
+  });
 
   return (
     <>
-      <div className="mx-auto max-w-5xl space-y-4">
-        <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Scheduling</h1>
-            <p className="mt-1 text-sm text-zinc-600">
-              All your created events appear here. Use Create to add a new event type.
-            </p>
-          </div>
-          <div ref={createMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setCreateOpen((s) => !s)}
-              className="inline-flex items-center gap-2 rounded-lg bg-[var(--app-primary)] px-4 py-2.5 text-sm font-medium text-[var(--app-primary-foreground)] transition hover:bg-[var(--app-primary-hover)]"
-            >
-              <PlusIcon className="h-4 w-4" aria-hidden />
-              Create
-            </button>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="mx-auto max-w-5xl space-y-8 py-4"
+    >
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">Scheduling</h1>
+          <p className="mt-2 text-base text-zinc-500 max-w-lg">
+            Create and manage your event types. Share your links to let clients book meetings directly into your calendar.
+          </p>
+        </div>
+        
+        <div ref={createMenuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setCreateOpen((s) => !s)}
+            className="group inline-flex items-center gap-2 rounded-xl bg-[var(--app-primary)] px-6 py-3 text-sm font-bold text-[var(--app-primary-foreground)] shadow-lg shadow-[var(--app-ring)] transition-all hover:bg-[var(--app-primary-hover)] hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <PlusIcon className="h-5 w-5 transition-transform group-hover:rotate-90" aria-hidden />
+            Create Event
+          </button>
 
+          <AnimatePresence>
             {createOpen && (
-              <div className="absolute top-[calc(100%+0.5rem)] right-0 z-40 w-[24rem] overflow-hidden rounded-xl border border-zinc-200 bg-white text-zinc-900 shadow-xl shadow-zinc-900/15">
-                <div className="border-b border-zinc-100 px-4 py-2.5">
-                  <h3 className="text-sm font-semibold text-zinc-900">Event type</h3>
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="absolute top-[calc(100%+0.75rem)] right-0 z-40 w-[26rem] overflow-hidden rounded-2xl border border-zinc-200 bg-white text-zinc-900 shadow-2xl"
+              >
+                <div className="border-b border-zinc-100 bg-zinc-50/50 px-5 py-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500">Choose Event Type</h3>
                 </div>
 
-                <div className="divide-y divide-zinc-100 px-2 py-1">
+                <div className="p-2">
                   {SCHEDULING_EVENT_TYPES.map((item) => (
                     <button
                       key={item.id}
                       type="button"
                       onClick={() => chooseType(item.id)}
-                      className="w-full rounded-md px-2 py-2.5 text-left transition hover:bg-[var(--app-row-hover)]"
+                      className="group w-full rounded-xl p-3 text-left transition-all hover:bg-[var(--app-primary-soft)]"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <span
                           className={[
-                            "inline-flex h-6 w-6 items-center justify-center rounded-md",
+                            "inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all group-hover:scale-110",
                             selected === item.id
-                              ? "bg-[var(--app-primary-soft)] text-[var(--app-primary)]"
-                              : "bg-zinc-100 text-zinc-500",
+                              ? "bg-[var(--app-primary)] text-white"
+                              : "bg-zinc-100 text-zinc-500 group-hover:bg-white group-hover:text-[var(--app-primary)] group-hover:shadow-sm",
                           ].join(" ")}
                         >
                           <EventTypeIcon id={item.id} />
                         </span>
-                        <p
-                          className={[
-                            "text-[1.05rem] leading-none font-semibold",
-                            selected === item.id ? "text-[var(--app-primary)]" : "text-zinc-900",
-                          ].join(" ")}
-                        >
-                          {item.title}
-                        </p>
+                        <div>
+                          <p className="text-sm font-bold text-zinc-900">{item.title}</p>
+                          <p className="text-xs font-medium text-zinc-500 group-hover:text-[var(--app-primary-soft-text)]">
+                            {item.hostLabel} → {item.inviteeLabel}
+                          </p>
+                        </div>
                       </div>
-                      <p className="mt-1 flex items-center gap-2 text-base text-zinc-800">
-                        <span>{item.hostLabel}</span>
-                        <span aria-hidden>&rarr;</span>
-                        <span>{item.inviteeLabel}</span>
-                      </p>
-                      <p className="mt-0.5 text-base text-zinc-600">{item.description}</p>
+                      <p className="mt-3 text-xs leading-relaxed text-zinc-600 font-medium">{item.description}</p>
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Events List */}
+      <section className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
+          <div className="flex items-center gap-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-400">My Events</h2>
+            
+            {/* Filter Chips */}
+            <div className="relative flex items-center bg-zinc-100/80 p-1 rounded-xl ring-1 ring-zinc-200">
+              {(["all", "active", "inactive"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilter(type)}
+                  className={[
+                    "relative px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors z-10",
+                    filter === type ? "text-[var(--app-primary)]" : "text-zinc-500 hover:text-zinc-700"
+                  ].join(" ")}
+                >
+                  {type}
+                  {filter === type && (
+                    <motion.div
+                      layoutId="activeFilter"
+                      className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
+          <span className="text-xs font-bold text-zinc-400 tabular-nums">
+            {meetingsLoading ? "..." : `${filteredMeetings.length} SHOWN`}
+          </span>
         </div>
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between border-b border-zinc-100 px-2 pb-3">
-            <h2 className="text-sm font-semibold text-zinc-900">My Events</h2>
-            <p className="text-xs text-zinc-500">
-              {meetingsLoading ? "…" : `${total} total`}
-            </p>
+        {meetingsError && (
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-8 text-center">
+            <XMarkIcon className="w-10 h-10 text-rose-300 mx-auto mb-4" />
+            <p className="text-sm font-bold text-rose-900">Could not load meetings</p>
+            <button 
+              onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.meetings.root })}
+              className="mt-4 text-xs font-bold text-rose-700 underline underline-offset-4"
+            >
+              Try Refreshing
+            </button>
           </div>
-          {meetingsError && (
-            <p className="px-2 py-4 text-sm text-rose-600">Could not load meetings. Try refreshing.</p>
-          )}
-          {!meetingsError && meetingsLoading && (
-            <p className="px-2 py-4 text-sm text-zinc-500">Loading meetings…</p>
-          )}
-          {!meetingsError && !meetingsLoading && meetings.length === 0 && (
-            <p className="px-2 py-4 text-sm text-zinc-500">
-              No host-created meetings yet. Create an event type to get a booking link, or add meetings from
-              your tools.
+        )}
+
+        {!meetingsError && meetingsLoading && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-40 rounded-2xl border border-zinc-100 bg-white p-6 animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {!meetingsError && !meetingsLoading && meetings.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 p-12 text-center">
+            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-6 ring-1 ring-zinc-100">
+              <CalendarDaysIcon className="w-8 h-8 text-zinc-300" />
+            </div>
+            <h3 className="text-lg font-bold text-zinc-900">No events yet</h3>
+            <p className="mt-2 text-sm text-zinc-500 max-w-xs mx-auto font-medium">
+              Create your first event type to start accepting bookings from your clients.
             </p>
-          )}
-          {!meetingsError && !meetingsLoading && meetings.length > 0 && (
-            <>
-              <ul className="divide-y divide-zinc-100">
-                {meetings.map((meeting) => (
-                  <li
-                    key={meeting.id}
-                    className="flex items-start justify-between gap-4 px-2 py-3 transition hover:bg-zinc-50/80"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setDetailMeeting(meeting)}
-                      className="min-w-0 flex-1 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-ring)]"
-                    >
-                      <p className="truncate text-sm font-semibold text-zinc-900">{meeting.title}</p>
-                      <p className="text-xs text-zinc-500">
-                        {meeting.eventType} · {meeting.platform} · {meeting.guest}
-                      </p>
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <div className="inline-flex items-center gap-1 text-xs text-zinc-500">
-                          <CalendarDaysIcon className="h-4 w-4" />
-                          {meeting.time}
-                        </div>
-                        <span
-                          className={[
-                            "rounded-md px-2 py-1 text-xs font-medium",
-                            meeting.status === "Upcoming"
-                              ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                              : "bg-zinc-100 text-zinc-600",
-                          ].join(" ")}
-                        >
-                          {meeting.status}
-                        </span>
-                      </div>
-                    </button>
-                    <div className="flex shrink-0 items-center gap-3">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[var(--app-primary)] hover:text-[var(--app-primary-hover)] transition-colors"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Create your first event
+            </button>
+          </div>
+        )}
+
+        {!meetingsError && !meetingsLoading && meetings.length > 0 && filteredMeetings.length === 0 && (
+          <div className="rounded-2xl border border-zinc-100 bg-white p-12 text-center">
+            <RocketLaunchIcon className="w-10 h-10 text-zinc-200 mx-auto mb-4" />
+            <p className="text-sm font-bold text-zinc-500">No {filter} events found</p>
+            <button
+              onClick={() => setFilter("all")}
+              className="mt-2 text-xs font-bold text-[var(--app-primary)] hover:underline"
+            >
+              Clear filter
+            </button>
+          </div>
+        )}
+
+        {!meetingsError && !meetingsLoading && filteredMeetings.length > 0 && (
+          <>
+            <motion.div 
+              layout
+              className="grid gap-6 sm:grid-cols-2"
+            >
+              {filteredMeetings.map((meeting, idx) => (
+                <motion.div
+                  key={meeting.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={[
+                    "group relative flex flex-col justify-between rounded-2xl border bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:shadow-[var(--app-ring)]",
+                    meeting.status === "Upcoming" ? "border-zinc-200 hover:border-[var(--app-primary-soft-border)]" : "border-zinc-100 opacity-75 grayscale-[0.5]"
+                  ].join(" ")}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-4">
                       <button
                         type="button"
-                        onClick={() => handleCopyMeetingLink(meeting.id)}
-                        className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                        onClick={() => setDetailMeeting(meeting)}
+                        className="text-left group/title flex-1 min-w-0"
                       >
-                        <LinkIcon className="h-3.5 w-3.5" />
-                        Copy link
+                        <h3 className="truncate text-lg font-bold text-zinc-900 group-hover/title:text-[var(--app-primary)] transition-colors">
+                          {meeting.title}
+                        </h3>
+                        <div className="mt-1 flex items-center gap-2 text-xs font-medium text-zinc-500">
+                          <span className="truncate">{meeting.guest}</span>
+                          <span>·</span>
+                          <span className="shrink-0">{meeting.platform}</span>
+                        </div>
                       </button>
-                      <div ref={rowMenuOpenFor === meeting.id ? rowMenuRef : null} className="relative">
+                      
+                      <div ref={rowMenuOpenFor === meeting.id ? rowMenuRef : null} className="relative shrink-0">
                         <button
                           type="button"
                           aria-label={`More actions for ${meeting.title}`}
-                          onClick={() =>
-                            setRowMenuOpenFor((current) => (current === meeting.id ? null : meeting.id))
-                          }
-                          className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800"
+                          onClick={() => setRowMenuOpenFor((current) => (current === meeting.id ? null : meeting.id))}
+                          className="rounded-xl p-2 text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-700"
                         >
                           <EllipsisHorizontalIcon className="h-5 w-5" />
                         </button>
-                        {rowMenuOpenFor === meeting.id && (
-                          <div className="absolute top-[calc(100%+0.35rem)] right-0 z-30 min-w-[10rem] overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRowMenuOpenFor(null);
-                                void handleRowAction("edit", meeting);
-                              }}
-                              disabled={loadingEditEvent}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
+                        
+                        <AnimatePresence>
+                          {rowMenuOpenFor === meeting.id && (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                              className="absolute top-[calc(100%+0.5rem)] right-0 z-30 min-w-[12rem] overflow-hidden rounded-xl border border-zinc-200 bg-white py-1.5 shadow-2xl"
                             >
-                              <PencilSquareIcon className="h-4 w-4" />
-                              {loadingEditEvent ? "Loading..." : "Edit"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRowMenuOpenFor(null);
-                                void handleRowAction("delete", meeting);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                              Delete
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRowMenuOpenFor(null);
-                                handleOpenMeetingBooking(meeting.id);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
-                            >
-                              <LinkIcon className="h-4 w-4" />
-                              Go to booking
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRowMenuOpenFor(null);
-                                void handleRowAction("toggle", meeting);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-50"
-                            >
-                              <PowerIcon className="h-4 w-4" />
-                              On / Off
-                            </button>
-                          </div>
-                        )}
+                              <button
+                                type="button"
+                                onClick={() => { setRowMenuOpenFor(null); void handleRowAction("edit", meeting); }}
+                                disabled={loadingEditEvent}
+                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
+                              >
+                                <PencilSquareIcon className="h-4 w-4" />
+                                {loadingEditEvent ? "Loading..." : "Edit Settings"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setRowMenuOpenFor(null); handleOpenMeetingBooking(meeting.id); }}
+                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
+                              >
+                                <ArrowUpRightIcon className="h-4 w-4" />
+                                Preview Booking
+                              </button>
+                              <div className="my-1.5 border-t border-zinc-100" />
+                              <button
+                                type="button"
+                                onClick={() => { setRowMenuOpenFor(null); void handleRowAction("delete", meeting); }}
+                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm font-bold text-rose-600 transition hover:bg-rose-50"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                                Delete Event
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-3 flex items-center justify-between px-2">
-                <p className="text-xs text-zinc-500">
-                  Page {page} of {totalPages}
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                    className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </section>
-      </div>
 
-      {detailMeeting && (
-        <>
-          <DrawerBackdrop onClick={() => setDetailMeeting(null)} aria-label="Close event details" />
-          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event type</p>
-                <h3 className="text-xl font-semibold tracking-tight text-zinc-900">{detailMeeting.title}</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetailMeeting(null)}
-                className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-                aria-label="Close details"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Summary</p>
-                <p className="mt-1 text-zinc-700">
-                  {detailMeeting.eventType} · {detailMeeting.platform} · {detailMeeting.guest}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1 text-xs text-zinc-600">
-                    <CalendarDaysIcon className="h-4 w-4" />
-                    {detailMeeting.time}
-                  </span>
-                  <span
-                    className={[
-                      "rounded-md px-2 py-1 text-xs font-medium",
-                      detailMeeting.status === "Upcoming"
-                        ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                        : "bg-zinc-100 text-zinc-600",
-                    ].join(" ")}
-                  >
-                    {detailMeeting.status}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-zinc-500">Event ID: {detailMeeting.id.replace(/^evt-/, "")}</p>
-              </div>
-
-              {detailEventLoading && (
-                <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/50 p-3 text-xs text-zinc-500">
-                  Loading schedule and booking page details…
-                </div>
-              )}
-              {detailEventError && !detailEventLoading && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900">
-                  {detailEventError}
-                </div>
-              )}
-              {detailEventDetail && (
-                <>
-                  <div className="rounded-lg border border-zinc-200 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Event settings</p>
-                    <dl className="mt-2 space-y-1.5 text-xs text-zinc-700">
-                      <div className="flex justify-between gap-2">
-                        <dt className="text-zinc-500">Duration</dt>
-                        <dd>{detailEventDetail.durationMinutes} min</dd>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <dt className="text-zinc-500">Location</dt>
-                        <dd className="text-right">{bookingLocationLabel(detailEventDetail.location)}</dd>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <dt className="text-zinc-500">Availability base</dt>
-                        <dd className="text-right">{availabilityPresetLabel(detailEventDetail.availabilityPreset)}</dd>
-                      </div>
-                      {(detailEventDetail.bufferBeforeMinutes > 0 ||
-                        detailEventDetail.bufferAfterMinutes > 0) && (
-                        <div className="flex justify-between gap-2">
-                          <dt className="text-zinc-500">Buffers</dt>
-                          <dd className="text-right">
-                            Before {detailEventDetail.bufferBeforeMinutes}m · After{" "}
-                            {detailEventDetail.bufferAfterMinutes}m
-                          </dd>
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 text-zinc-600 rounded-lg text-xs font-bold border border-zinc-100 shadow-sm">
+                          <VideoCameraIcon className="w-3.5 h-3.5" />
+                          {meeting.platform}
                         </div>
-                      )}
-                      {detailEventDetail.paymentEnabled &&
-                        detailEventDetail.paymentProvider === "razorpay" &&
-                        detailEventDetail.paymentAmountPaisa != null && (
-                          <>
-                            <div className="flex justify-between gap-2">
-                              <dt className="text-zinc-500">Meeting payment</dt>
-                              <dd className="text-right">Razorpay</dd>
-                            </div>
-                            <div className="flex justify-between gap-2">
-                              <dt className="text-zinc-500">Fee</dt>
-                              <dd className="text-right">
-                                {new Intl.NumberFormat("en-IN", {
-                                  style: "currency",
-                                  currency: "INR",
-                                }).format(detailEventDetail.paymentAmountPaisa / 100)}
-                              </dd>
-                            </div>
-                            {detailEventDetail.paymentLabel ? (
-                              <div className="flex justify-between gap-2">
-                                <dt className="text-zinc-500">Checkout label</dt>
-                                <dd className="text-right">{detailEventDetail.paymentLabel}</dd>
-                              </div>
-                            ) : null}
-                          </>
-                        )}
-                    </dl>
-                  </div>
-                  <div className="rounded-lg border border-zinc-200 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Weekly hours</p>
-                    <ul className="mt-2 space-y-1 text-xs text-zinc-700">
-                      {sortWeekSlots(detailEventDetail.weekSlots).map((slot) => (
-                        <li key={slot.dayKey} className="flex justify-between gap-2">
-                          <span className="font-medium text-zinc-800">{slot.dayKey}</span>
-                          {slot.enabled ? (
-                            <span className="text-zinc-600">
-                              {slot.startTime} – {slot.endTime}
-                            </span>
-                          ) : (
-                            <span className="text-zinc-400">Not available</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
+                        <div className={[
+                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors",
+                          meeting.status === "Upcoming" ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]" : "bg-zinc-100 text-zinc-500"
+                        ].join(" ")}>
+                          <ClockIcon className="w-3.5 h-3.5" />
+                          {meeting.status === "Upcoming" ? "Active" : "Paused"}
+                        </div>
+                      </div>
 
-              <div className="rounded-lg border border-zinc-200 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Public booking link</p>
-                <p className="mt-1 break-all text-xs text-zinc-600">{bookingLinkForMeeting(detailMeeting.id)}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleCopyMeetingLink(detailMeeting.id)}
-                    className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                  >
-                    <LinkIcon className="h-3.5 w-3.5" />
-                    Copy link
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenMeetingBooking(detailMeeting.id)}
-                    className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                  >
-                    <LinkIcon className="h-3.5 w-3.5" />
-                    Open booking page
-                  </button>
-                </div>
-              </div>
+                      {/* Premium Toggle Switch */}
+                      <button
+                        type="button"
+                        onClick={() => handleRowAction("toggle", meeting)}
+                        className={[
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--app-primary)] focus:ring-offset-2",
+                          meeting.status === "Upcoming" ? "bg-[var(--app-primary)]" : "bg-zinc-300"
+                        ].join(" ")}
+                      >
+                        <span
+                          className={[
+                            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                            meeting.status === "Upcoming" ? "translate-x-5" : "translate-x-0"
+                          ].join(" ")}
+                        />
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="rounded-lg border border-zinc-200 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Meeting link</p>
-                {detailMeeting.meetingLink ? (
-                  <>
-                    <p className="mt-1 break-all text-xs text-zinc-600">{detailMeeting.meetingLink}</p>
+                  <div className="mt-8 pt-6 border-t border-zinc-100 flex items-center justify-between gap-3">
                     <button
                       type="button"
-                      onClick={() => handleOpenMeetingLink(detailMeeting.meetingLink)}
-                      className="mt-2 inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                      onClick={() => handleCopyMeetingLink(meeting.id)}
+                      className="inline-flex items-center gap-2 text-xs font-bold text-[var(--app-primary)] hover:text-[var(--app-primary-hover)] transition-colors"
                     >
-                      <LinkIcon className="h-3.5 w-3.5" />
-                      Open meeting link
+                      <LinkIcon className="h-4 w-4" />
+                      Copy Link
                     </button>
-                  </>
-                ) : (
-                  <p className="mt-1 text-xs text-zinc-500">No meeting link generated yet for this event.</p>
-                )}
+                    
+                    <button
+                      type="button"
+                      onClick={() => setDetailMeeting(meeting)}
+                      className="text-xs font-bold text-zinc-400 hover:text-zinc-600 transition-colors"
+                    >
+                      Settings
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Pagination */}
+            <div className="mt-10 flex items-center justify-between border-t border-zinc-100 pt-6 px-2">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                Page {page} <span className="mx-1">/</span> {totalPages}
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 transition-all hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeftIcon className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 transition-all hover:bg-zinc-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRightIcon className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+    </motion.div>
+
+      <AnimatePresence>
+        {detailMeeting && (
+          <>
+            <DrawerBackdrop onClick={() => setDetailMeeting(null)} aria-label="Close event details" />
+            <motion.aside 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto border-l border-zinc-200 bg-white p-6 shadow-2xl"
+            >
+              <div className="mb-8 flex items-start justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Event Overview</p>
+                  <h3 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">{detailMeeting.title}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailMeeting(null)}
+                  className="rounded-xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700 active:scale-95"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
               </div>
 
-              {detailEventDetail && (
-                <div className="rounded-lg border border-zinc-200 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Guest booking page</p>
-                  <p className="mt-1 text-xs text-zinc-600">
-                    {BOOKING_PAGE_THEME_OPTIONS.find(
-                      (o) => o.id === normalizeBookingPageTheme(detailEventDetail.bookingPageTheme),
-                    )?.label ?? "Simple"}
-                  </p>
-                  <div className="mt-3 overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
-                    <BookingPageThemePreview
-                      themeId={
-                        normalizeBookingPageTheme(detailEventDetail.bookingPageTheme) as BookingPageThemeId
-                      }
-                    />
+              <div className="space-y-6">
+                {/* Summary Card */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="rounded-3xl border border-zinc-100 bg-zinc-50/50 p-6 shadow-sm"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Status & Schedule</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <span className={[
+                      "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold shadow-sm",
+                      detailMeeting.status === "Upcoming"
+                        ? "bg-[var(--app-primary)] text-white"
+                        : "bg-zinc-200 text-zinc-600",
+                    ].join(" ")}>
+                      <ClockIcon className="h-4 w-4" />
+                      {detailMeeting.status === "Upcoming" ? "Active" : "Inactive"}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold text-zinc-700 shadow-sm ring-1 ring-zinc-100">
+                      <CalendarDaysIcon className="h-4 w-4 text-[var(--app-primary)]" />
+                      {detailMeeting.time}
+                    </span>
                   </div>
-                </div>
-              )}
+                  <p className="mt-4 text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">ID: {detailMeeting.id.replace(/^evt-/, "")}</p>
+                </motion.div>
 
-              <div className="rounded-lg border border-zinc-200 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Quick actions</p>
-                <div className="grid grid-cols-2 gap-2">
+                {detailEventLoading && (
+                  <div className="p-8 text-center rounded-3xl border border-dashed border-zinc-200 animate-pulse">
+                    <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Fetching details...</p>
+                  </div>
+                )}
+                
+                {detailEventError && !detailEventLoading && (
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50 p-6 text-center">
+                    <p className="text-sm font-bold text-rose-900">{detailEventError}</p>
+                  </div>
+                )}
+
+                {detailEventDetail && (
+                  <>
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="rounded-3xl border border-zinc-200 p-6 shadow-sm"
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Configuration</p>
+                      <dl className="mt-6 space-y-4">
+                        {[
+                          { label: "Duration", value: `${detailEventDetail.durationMinutes} min` },
+                          { label: "Location", value: bookingLocationLabel(detailEventDetail.location) },
+                          { label: "Availability", value: availabilityPresetLabel(detailEventDetail.availabilityPreset) },
+                        ].map((item) => (
+                          <div key={item.label} className="flex items-center justify-between">
+                            <dt className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{item.label}</dt>
+                            <dd className="text-sm font-black text-zinc-900">{item.value}</dd>
+                          </div>
+                        ))}
+                        {detailEventDetail.paymentEnabled && (
+                          <div className="pt-4 border-t border-zinc-100 mt-4 flex items-center justify-between">
+                            <dt className="text-xs font-bold text-[var(--app-primary)] uppercase tracking-wider">Meeting Fee</dt>
+                            <dd className="text-sm font-black text-zinc-900">
+                              {new Intl.NumberFormat("en-IN", {
+                                style: "currency",
+                                currency: "INR",
+                                maximumFractionDigits: 0
+                              }).format(detailEventDetail.paymentAmountPaisa! / 100)}
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                    </motion.div>
+
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="rounded-3xl border border-zinc-100 bg-zinc-50/30 p-6"
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Weekly Schedule</p>
+                      <ul className="mt-4 space-y-2">
+                        {sortWeekSlots(detailEventDetail.weekSlots).map((slot) => (
+                          <li key={slot.dayKey} className="flex items-center justify-between p-3 rounded-2xl bg-white shadow-sm ring-1 ring-zinc-100">
+                            <span className="text-xs font-black text-zinc-900">{slot.dayKey}</span>
+                            {slot.enabled ? (
+                              <span className="text-xs font-bold text-zinc-500 tabular-nums">
+                                {slot.startTime} – {slot.endTime}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Closed</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  </>
+                )}
+
+                {/* Links & Shares */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="space-y-4"
+                >
+                  <div className="rounded-3xl border border-zinc-200 p-6 shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Public Booking URL</p>
+                    <p className="mt-3 truncate text-xs font-bold text-zinc-500 bg-zinc-50 p-3 rounded-xl border border-zinc-100">
+                      {bookingLinkForMeeting(detailMeeting.id)}
+                    </p>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMeetingLink(detailMeeting.id)}
+                        className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-[var(--app-primary-hover)] active:scale-95 shadow-lg shadow-[var(--app-primary-soft)]"
+                      >
+                        Copy Link
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenMeetingBooking(detailMeeting.id)}
+                        className="flex-1 rounded-xl bg-zinc-900 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-zinc-800 active:scale-95 shadow-lg"
+                      >
+                        Preview Page
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Quick Actions Grid */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="grid grid-cols-2 gap-3 pb-8"
+                >
                   <button
                     type="button"
                     onClick={() => void handleRowAction("edit", detailMeeting)}
                     disabled={loadingEditEvent}
-                    className="inline-flex items-center justify-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                    className="flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white p-4 text-xs font-black uppercase tracking-widest text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
                   >
-                    <PencilSquareIcon className="h-3.5 w-3.5" />
-                    {loadingEditEvent ? "Loading..." : "Edit"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleRowAction("toggle", detailMeeting)}
-                    className="inline-flex items-center justify-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                  >
-                    <PowerIcon className="h-3.5 w-3.5" />
-                    On / Off
+                    <PencilSquareIcon className="h-5 w-5 text-zinc-400" />
+                    Edit
                   </button>
                   <button
                     type="button"
                     onClick={() => void handleRowAction("delete", detailMeeting)}
-                    className="inline-flex items-center justify-center gap-1 rounded-md border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-50"
+                    className="flex items-center justify-center gap-2 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-xs font-black uppercase tracking-widest text-rose-600 shadow-sm transition-all hover:bg-rose-100 active:scale-95"
                   >
-                    <TrashIcon className="h-3.5 w-3.5" />
+                    <TrashIcon className="h-5 w-5" />
                     Delete
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleOpenMeetingBooking(detailMeeting.id);
-                    }}
-                    className="inline-flex items-center justify-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                  >
-                    <LinkIcon className="h-3.5 w-3.5" />
-                    Go to booking
-                  </button>
+                </motion.div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {setupOpen && selectedType && (
+          <>
+            <DrawerBackdrop onClick={() => setSetupOpen(false)} aria-label="Close event setup" />
+            <motion.aside 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 right-0 z-50 w-full max-w-xl overflow-y-auto border-l border-zinc-200 bg-white p-8 shadow-2xl"
+            >
+              <div className="mb-10 flex items-start justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{selectedType.title} Template</p>
+                  <h3 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">
+                    {setupMode === "edit" ? "Modify Event" : "Configure New Event"}
+                  </h3>
                 </div>
-              </div>
-            </div>
-          </aside>
-        </>
-      )}
-
-      {setupOpen && selectedType && (
-        <>
-          <DrawerBackdrop onClick={() => setSetupOpen(false)} aria-label="Close event setup" />
-          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{selectedType.title} event</p>
-                <h3 className="text-xl font-semibold tracking-tight text-zinc-900">
-                  {setupMode === "edit" ? "Edit event type" : "Set up event type"}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSetupOpen(false)}
-                className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-                aria-label="Close setup drawer"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <Field label="Event name" required>
-                <Input
-                  value={form.eventName}
-                  onChange={(v) => setForm((s) => ({ ...s, eventName: v }))}
-                  placeholder="30 min Discovery call"
-                />
-              </Field>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Duration">
-                  <Select
-                    value={form.duration}
-                    onChange={(v) => setForm((s) => ({ ...s, duration: v }))}
-                    options={[
-                      { value: "15", label: "15 minutes" },
-                      { value: "30", label: "30 minutes" },
-                      { value: "45", label: "45 minutes" },
-                      { value: "60", label: "60 minutes" },
-                    ]}
-                  />
-                </Field>
-                <Field label="Location">
-                  <Select
-                    value={form.location}
-                    onChange={(v) => setForm((s) => ({ ...s, location: v }))}
-                    options={[
-                      { value: "google-meet", label: "Google Meet" },
-                      { value: "zoom", label: "Zoom" },
-                      { value: "phone", label: "Phone call" },
-                      { value: "in-person", label: "In person" },
-                    ]}
-                  />
-                </Field>
+                <button
+                  type="button"
+                  onClick={() => setSetupOpen(false)}
+                  className="rounded-2xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
               </div>
 
-              <Field label="Description / instructions">
-                <TextArea
-                  value={form.description}
-                  onChange={(v) => setForm((s) => ({ ...s, description: v }))}
-                  placeholder="Add context, agenda, or instructions for invitees."
-                />
-              </Field>
+              <div className="space-y-8 pb-32">
+                <section className="space-y-6">
+                  <Field label="What is this event called?" required>
+                    <Input
+                      value={form.eventName}
+                      onChange={(v) => setForm((s) => ({ ...s, eventName: v }))}
+                      placeholder="e.g. 30 min Discovery call"
+                    />
+                  </Field>
 
-              <Field label="Availability schedule">
-                <Select
-                  value={form.availability}
-                  onChange={(v) => setForm((s) => ({ ...s, availability: v }))}
-                  options={[
-                    { value: "working-hours", label: "Default working hours" },
-                    { value: "weekday-mornings", label: "Weekday mornings" },
-                    { value: "custom", label: "Custom schedule" },
-                  ]}
-                />
-              </Field>
-
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Time slots</p>
-                  {form.availability !== "custom" && (
-                    <span className="text-xs font-medium text-zinc-500">
-                      Using saved default hours (read-only)
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {(form.availability === "custom" ? customHours : DEFAULT_WORKING_HOURS).map((row, idx) => (
-                    <div key={row.day} className="grid grid-cols-[40px_1fr_14px_1fr] items-center gap-2">
-                      <span className="text-sm font-medium text-zinc-700">{row.day}</span>
-                      <input
-                        type="time"
-                        value={row.start}
-                        disabled={!row.enabled || form.availability !== "custom"}
-                        onChange={(e) =>
-                          setCustomHours((prev) =>
-                            prev.map((d, i) => (i === idx ? { ...d, start: e.target.value } : d)),
-                          )
-                        }
-                        className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-500"
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Duration">
+                      <Select
+                        value={form.duration}
+                        onChange={(v) => setForm((s) => ({ ...s, duration: v }))}
+                        options={[
+                          { value: "15", label: "15 mins" },
+                          { value: "30", label: "30 mins" },
+                          { value: "45", label: "45 mins" },
+                          { value: "60", label: "60 mins" },
+                        ]}
                       />
-                      <span className="text-zinc-400">-</span>
-                      <input
-                        type="time"
-                        value={row.end}
-                        disabled={!row.enabled || form.availability !== "custom"}
-                        onChange={(e) =>
-                          setCustomHours((prev) =>
-                            prev.map((d, i) => (i === idx ? { ...d, end: e.target.value } : d)),
-                          )
-                        }
-                        className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-500"
+                    </Field>
+                    <Field label="Meeting Platform">
+                      <Select
+                        value={form.location}
+                        onChange={(v) => setForm((s) => ({ ...s, location: v }))}
+                        options={[
+                          { value: "google-meet", label: "Google Meet" },
+                          { value: "zoom", label: "Zoom" },
+                          { value: "phone", label: "Phone call" },
+                          { value: "in-person", label: "In person" },
+                        ]}
                       />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Min notice">
-                  <Select
-                    value={form.minNotice}
-                    onChange={(v) => setForm((s) => ({ ...s, minNotice: v }))}
-                    options={[
-                      { value: "1h", label: "1 hour" },
-                      { value: "4h", label: "4 hours" },
-                      { value: "12h", label: "12 hours" },
-                      { value: "24h", label: "24 hours" },
-                    ]}
-                  />
-                </Field>
-                <Field label="Buffer before">
-                  <Select
-                    value={form.bufferBefore}
-                    onChange={(v) => setForm((s) => ({ ...s, bufferBefore: v }))}
-                    options={[
-                      { value: "0", label: "0 min" },
-                      { value: "10", label: "10 min" },
-                      { value: "15", label: "15 min" },
-                      { value: "30", label: "30 min" },
-                    ]}
-                  />
-                </Field>
-                <Field label="Buffer after">
-                  <Select
-                    value={form.bufferAfter}
-                    onChange={(v) => setForm((s) => ({ ...s, bufferAfter: v }))}
-                    options={[
-                      { value: "0", label: "0 min" },
-                      { value: "10", label: "10 min" },
-                      { value: "15", label: "15 min" },
-                      { value: "30", label: "30 min" },
-                    ]}
-                  />
-                </Field>
-              </div>
-
-              <Field label="Booking window">
-                <Select
-                  value={form.bookingWindow}
-                  onChange={(v) => setForm((s) => ({ ...s, bookingWindow: v }))}
-                  options={[
-                    { value: "14d", label: "Next 14 days" },
-                    { value: "30d", label: "Next 30 days" },
-                    { value: "60d", label: "Next 60 days" },
-                    { value: "90d", label: "Next 90 days" },
-                  ]}
-                />
-              </Field>
-
-              <Field label="Booking form question (optional)">
-                <Input
-                  value={form.bookingQuestion}
-                  onChange={(v) => setForm((s) => ({ ...s, bookingQuestion: v }))}
-                  placeholder="What should we focus on in this meeting?"
-                />
-              </Field>
-
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
-                <div className="flex items-start gap-2">
-                  <BanknotesIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                      Meeting payment (optional)
-                    </p>
-                    <p className="mt-1 text-xs text-zinc-600">
-                      Require a fee before the slot is confirmed. Guests pay on your public booking page via
-                      Razorpay (more providers later).
-                    </p>
+                    </Field>
                   </div>
-                </div>
-                <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
-                  <input
-                    type="checkbox"
-                    checked={form.paymentEnabled}
-                    onChange={(e) => setForm((s) => ({ ...s, paymentEnabled: e.target.checked }))}
-                    className="h-4 w-4 rounded border-zinc-300 text-[var(--app-primary)] focus:ring-[var(--app-ring)]"
-                  />
-                  <span>Accept payment for this meeting</span>
-                </label>
-                {form.paymentEnabled && (
-                  <div className="mt-3 space-y-3 border-t border-zinc-200/80 pt-3">
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                        Provider
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {MEETING_PAYMENT_PROVIDER_CHIPS.map((chip) => {
-                          const active =
-                            !chip.disabled && chip.providerId && form.paymentProvider === chip.providerId;
-                          return (
-                            <button
-                              key={chip.key}
-                              type="button"
-                              disabled={Boolean(chip.disabled)}
-                              onClick={() => {
-                                if (chip.disabled || !chip.providerId) return;
-                                setForm((s) => ({ ...s, paymentProvider: chip.providerId! }));
-                              }}
-                              className={[
-                                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                chip.disabled
-                                  ? "cursor-not-allowed border-zinc-100 bg-zinc-100 text-zinc-400"
-                                  : active
-                                    ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300",
-                              ].join(" ")}
-                              title={chip.hint}
-                            >
-                              {chip.label}
-                            </button>
-                          );
-                        })}
+
+                  <Field label="Instructions for Invitee">
+                    <TextArea
+                      value={form.description}
+                      onChange={(v) => setForm((s) => ({ ...s, description: v }))}
+                      placeholder="Add context, agenda, or instructions for invitees."
+                    />
+                  </Field>
+                </section>
+
+                <section className="space-y-6 rounded-3xl bg-zinc-50 p-6 ring-1 ring-zinc-200">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Scheduling Logic</p>
+                  
+                  <Field label="Availability Schedule">
+                    <Select
+                      value={form.availability}
+                      onChange={(v) => setForm((s) => ({ ...s, availability: v }))}
+                      options={[
+                        { value: "working-hours", label: "Default working hours" },
+                        { value: "weekday-mornings", label: "Weekday mornings" },
+                        { value: "custom", label: "Custom schedule" },
+                      ]}
+                    />
+                  </Field>
+
+                  <div className="space-y-2">
+                    {(form.availability === "custom" ? customHours : DEFAULT_WORKING_HOURS).map((row, idx) => (
+                      <div key={row.day} className="grid grid-cols-[60px_1fr_14px_1fr] items-center gap-3">
+                        <span className="text-xs font-black text-zinc-900">{row.day}</span>
+                        <input
+                          type="time"
+                          value={row.start}
+                          disabled={!row.enabled || form.availability !== "custom"}
+                          onChange={(e) =>
+                            setCustomHours((prev) =>
+                              prev.map((d, i) => (i === idx ? { ...d, start: e.target.value } : d)),
+                            )
+                          }
+                          className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-800 shadow-sm disabled:opacity-40"
+                        />
+                        <span className="text-zinc-400 text-center">-</span>
+                        <input
+                          type="time"
+                          value={row.end}
+                          disabled={!row.enabled || form.availability !== "custom"}
+                          onChange={(e) =>
+                            setCustomHours((prev) =>
+                              prev.map((d, i) => (i === idx ? { ...d, end: e.target.value } : d)),
+                            )
+                          }
+                          className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-800 shadow-sm disabled:opacity-40"
+                        />
                       </div>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Amount (INR)">
-                        <Input
-                          value={form.paymentAmountRupees}
-                          onChange={(v) => setForm((s) => ({ ...s, paymentAmountRupees: v.replace(/[^\d.]/g, "") }))}
-                          placeholder="500"
-                          inputMode="decimal"
-                        />
-                      </Field>
-                      <Field label="Checkout label">
-                        <Input
-                          value={form.paymentLabel}
-                          onChange={(v) => setForm((s) => ({ ...s, paymentLabel: v }))}
-                          placeholder="Consultation fee"
-                        />
-                      </Field>
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-zinc-500">
-                      Guests pay with <strong>your</strong> Razorpay account. Connect keys under{" "}
-                      <Link href="/dashboard/integrations/razorpay" className="font-medium text-[var(--app-primary)] underline">
-                        Integrations → Razorpay
-                      </Link>{" "}
-                      (Key ID, Key Secret, and optional webhook). Platform subscription billing uses separate env keys.
-                    </p>
+                    ))}
                   </div>
-                )}
-              </div>
 
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Custom theme for booking page
-                </p>
-                <p className="mt-1 text-xs text-zinc-600">
-                  Guests see this style on your public link. Pick one theme — preview updates below.
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {BOOKING_PAGE_THEME_OPTIONS.map((opt) => {
-                    const active = form.bookingPageTheme === opt.id;
-                    return (
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Notice">
+                      <Select
+                        value={form.minNotice}
+                        onChange={(v) => setForm((s) => ({ ...s, minNotice: v }))}
+                        options={[
+                          { value: "1h", label: "1h" },
+                          { value: "4h", label: "4h" },
+                          { value: "12h", label: "12h" },
+                          { value: "24h", label: "24h" },
+                        ]}
+                      />
+                    </Field>
+                    <Field label="Buf. Pre">
+                      <Select
+                        value={form.bufferBefore}
+                        onChange={(v) => setForm((s) => ({ ...s, bufferBefore: v }))}
+                        options={[{ value: "0", label: "0m" }, { value: "15", label: "15m" }, { value: "30", label: "30m" }]}
+                      />
+                    </Field>
+                    <Field label="Buf. Post">
+                      <Select
+                        value={form.bufferAfter}
+                        onChange={(v) => setForm((s) => ({ ...s, bufferAfter: v }))}
+                        options={[{ value: "0", label: "0m" }, { value: "15", label: "15m" }, { value: "30", label: "30m" }]}
+                      />
+                    </Field>
+                  </div>
+                </section>
+
+                <section className="space-y-6">
+                  <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Accept Payments</h3>
+                        <p className="mt-1 text-xs font-medium text-zinc-500">Collect fees before booking confirmation.</p>
+                      </div>
                       <button
-                        key={opt.id}
                         type="button"
-                        onClick={() =>
-                          setForm((s) => ({
-                            ...s,
-                            bookingPageTheme: opt.id,
-                          }))
-                        }
+                        onClick={() => setForm((s) => ({ ...s, paymentEnabled: !s.paymentEnabled }))}
                         className={[
-                          "rounded-lg border px-2.5 py-2 text-left transition",
-                          active
-                            ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] ring-1 ring-[var(--app-primary)]"
-                            : "border-zinc-200 bg-white hover:border-zinc-300",
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors",
+                          form.paymentEnabled ? "bg-[var(--app-primary)]" : "bg-zinc-300"
                         ].join(" ")}
                       >
-                        <span className="block text-xs font-semibold text-zinc-900">{opt.label}</span>
-                        <span className="mt-0.5 block text-[10px] leading-snug text-zinc-500">{opt.hint}</span>
+                        <span className={[
+                          "h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm",
+                          form.paymentEnabled ? "translate-x-5" : "translate-x-1"
+                        ].join(" ")} />
                       </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">Live preview</p>
-                <div className="mt-2 max-w-sm">
-                  <BookingPageThemePreview themeId={form.bookingPageTheme} />
-                </div>
+                    </div>
+
+                    {form.paymentEnabled && (
+                      <div className="mt-8 space-y-4 pt-6 border-t border-zinc-100">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <Field label="Price (INR)">
+                            <Input
+                              value={form.paymentAmountRupees}
+                              onChange={(v) => setForm((s) => ({ ...s, paymentAmountRupees: v.replace(/[^\d.]/g, "") }))}
+                              placeholder="500"
+                              inputMode="decimal"
+                            />
+                          </Field>
+                          <Field label="Checkout Label">
+                            <Input
+                              value={form.paymentLabel}
+                              onChange={(v) => setForm((s) => ({ ...s, paymentLabel: v }))}
+                              placeholder="e.g. Service Fee"
+                            />
+                          </Field>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Page Aesthetics</p>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {BOOKING_PAGE_THEME_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setForm((s) => ({ ...s, bookingPageTheme: opt.id }))}
+                          className={[
+                            "rounded-2xl border p-4 text-left transition-all",
+                            form.bookingPageTheme === opt.id
+                              ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] ring-2 ring-[var(--app-primary)]"
+                              : "border-zinc-100 bg-zinc-50 hover:border-zinc-200"
+                          ].join(" ")}
+                        >
+                          <span className="block text-xs font-black text-zinc-900">{opt.label}</span>
+                          <span className="mt-1 block text-[10px] font-medium text-zinc-500 leading-snug">{opt.hint}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </section>
               </div>
 
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Preview</p>
-                <p className="text-sm font-medium text-zinc-900">{form.eventName || "Untitled event"}</p>
-                <p className="mt-1 flex items-center gap-2 text-xs text-zinc-600">
-                  <ClockIcon className="h-3.5 w-3.5" />
-                  {form.duration} minutes
-                  <span aria-hidden>•</span>
-                  <VideoCameraIcon className="h-3.5 w-3.5" />
-                  {form.location === "google-meet"
-                    ? "Google Meet"
-                    : form.location === "zoom"
-                      ? "Zoom"
-                      : form.location === "phone"
-                        ? "Phone call"
-                        : "In person"}
-                </p>
+              <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-zinc-100 p-8 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSetupOpen(false)}
+                  className="px-6 py-3 text-sm font-bold text-zinc-500 transition hover:text-zinc-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={savingEvent}
+                  onClick={handleSaveEvent}
+                  className="rounded-2xl bg-[var(--app-primary)] px-10 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-[var(--app-primary-soft)] transition-all hover:bg-[var(--app-primary-hover)] active:scale-95"
+                >
+                  {savingEvent ? "Saving..." : setupMode === "edit" ? "Update Event" : "Create Event"}
+                </button>
               </div>
-            </div>
-
-            <div className="sticky bottom-0 mt-5 flex items-center justify-end gap-2 border-t border-zinc-100 bg-white pt-4">
-              <button
-                type="button"
-                onClick={() => setSetupOpen(false)}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={savingEvent}
-                onClick={handleSaveEvent}
-                className="rounded-full bg-[var(--app-primary)] px-4 py-2 text-sm font-medium text-[var(--app-primary-foreground)] transition hover:bg-[var(--app-primary-hover)]"
-              >
-                {savingEvent ? "Saving..." : setupMode === "edit" ? "Update event" : "Save event"}
-              </button>
-            </div>
-          </aside>
-        </>
-      )}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={deleteDialogOpen}

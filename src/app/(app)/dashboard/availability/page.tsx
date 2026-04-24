@@ -4,9 +4,15 @@ import {
   CalendarDaysIcon,
   ClockIcon,
   XMarkIcon,
+  PlusIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  CheckCircleIcon,
+  NoSymbolIcon
 } from "@heroicons/react/24/outline";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -132,270 +138,363 @@ export default function AvailabilityPage() {
   }
 
   return (
-    <>
-      <div className="mx-auto max-w-5xl space-y-4">
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Availability</h1>
-          <p className="mt-1 text-sm text-zinc-600">
-            Configure when people can book you: weekly hours, date overrides, timezone, notice, and buffers.
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-auto max-w-5xl space-y-8 py-4"
+    >
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">Availability</h1>
+          <p className="mt-2 text-base text-zinc-500 max-w-2xl">
+            Fine-tune your scheduling rules. Define standard weekly hours and manage specific date overrides for holidays or busy periods.
           </p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[1.45fr_1fr]">
-          <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between border-b border-zinc-100 px-2 pb-3">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                <ClockIcon className="h-4 w-4 text-zinc-400" />
-                Weekly working hours
-              </h2>
-              <button
-                type="button"
-                onClick={() => setEditOpen(true)}
-                className="rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50"
-              >
-                Edit hours
-              </button>
-            </div>
-            {isError && (
-              <p className="px-2 py-3 text-sm text-rose-600">Could not load availability.</p>
-            )}
-            {isLoading && (
-              <p className="px-2 py-3 text-sm text-zinc-500">Loading weekly hours...</p>
-            )}
-            {!isLoading && !isError && (
-              <ul className="divide-y divide-zinc-100">
-                {rowsForView.map((row) => (
-                  <li key={row.dayOfWeek} className="flex items-center justify-between gap-4 px-2 py-2.5">
-                    <span className="text-sm font-medium text-zinc-800">{row.dayLabel}</span>
-                    <span className="text-sm text-zinc-500">
-                      {row.enabled ? `${row.startTime} - ${row.endTime}` : "Unavailable"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between border-b border-zinc-100 px-2 pb-3">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                <CalendarDaysIcon className="h-4 w-4 text-zinc-400" />
-                Date overrides
-              </h2>
-              <button
-                type="button"
-                onClick={() => setOverrideOpen(true)}
-                className="rounded-md bg-[var(--app-primary)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-primary-foreground)] transition hover:bg-[var(--app-primary-hover)]"
-              >
-                Add override
-              </button>
-            </div>
-            <ul className="space-y-2 px-2">
-              {overridesLoading && <li className="text-sm text-zinc-500">Loading overrides...</li>}
-              {!overridesLoading && overrides.length === 0 && (
-                <li className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                  No overrides yet. Add one-time blocks like 2:00 PM - 4:00 PM.
-                </li>
-              )}
-              {overrides.map((item) => (
-                <li key={item.id} className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-zinc-900">{new Date(`${item.date}T00:00:00`).toDateString()}</p>
-                      <p className="text-xs text-zinc-600">
-                        {item.label?.trim() || "Date override"} -{" "}
-                        {item.isAllDay ? "Unavailable all day" : `${item.startTime} - ${item.endTime}`}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeOverride(item.id)}
-                      disabled={overrideDeletingId === item.id}
-                      className="rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100 disabled:opacity-60"
-                    >
-                      {overrideDeletingId === item.id ? "Removing..." : "Remove"}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
         </div>
       </div>
 
-      {editOpen && (
-        <>
-          <DrawerBackdrop onClick={() => setEditOpen(false)} aria-label="Close weekly hours editor" />
-          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Availability</p>
-                <h3 className="text-xl font-semibold tracking-tight text-zinc-900">Edit weekly hours</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditOpen(false)}
-                className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-                aria-label="Close editor"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
+      <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr]">
+        {/* Weekly Hours */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-400">Weekly working hours</h2>
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <PencilSquareIcon className="h-4 w-4" />
+              Configure
+            </button>
+          </div>
 
-            <div className="space-y-2">
-              {draft.map((row, idx) => (
-                <div key={row.dayOfWeek} className="rounded-lg border border-zinc-200 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-zinc-800">{row.dayLabel}</p>
-                    <label className="inline-flex items-center gap-2 text-xs text-zinc-600">
-                      <input
-                        type="checkbox"
-                        checked={row.enabled}
-                        onChange={(e) =>
+          <div className="rounded-3xl border border-zinc-200 bg-white p-2 shadow-sm overflow-hidden">
+            {isError && (
+              <p className="p-8 text-center text-sm font-bold text-rose-600">Could not load availability.</p>
+            )}
+            {isLoading && (
+              <div className="space-y-2 p-4">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <div key={i} className="h-12 w-full animate-pulse rounded-xl bg-zinc-50" />
+                ))}
+              </div>
+            )}
+            {!isLoading && !isError && (
+              <ul className="divide-y divide-zinc-100">
+                {weeklyHours.map((row, idx) => (
+                  <motion.li 
+                    key={row.dayOfWeek}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="group flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-zinc-50/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={[
+                        "flex h-10 w-10 items-center justify-center rounded-2xl ring-1 transition-all group-hover:scale-110",
+                        row.enabled ? "bg-[var(--app-primary-soft)] text-[var(--app-primary)] ring-[var(--app-primary-soft-border)] shadow-sm" : "bg-zinc-50 text-zinc-300 ring-zinc-100"
+                      ].join(" ")}>
+                        {row.enabled ? <CheckCircleIcon className="h-5 w-5" /> : <NoSymbolIcon className="h-5 w-5" />}
+                      </div>
+                      <span className="text-sm font-bold text-zinc-900">{row.dayLabel}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className={[
+                        "text-sm font-bold tabular-nums transition-colors",
+                        row.enabled ? "text-zinc-700" : "text-zinc-400 font-medium italic"
+                      ].join(" ")}>
+                        {row.enabled ? `${row.startTime} - ${row.endTime}` : "Unavailable"}
+                      </span>
+                    </div>
+                  </motion.li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        {/* Date Overrides */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-400">Date overrides</h2>
+            <button
+              type="button"
+              onClick={() => setOverrideOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--app-primary)] px-4 py-2 text-xs font-bold text-[var(--app-primary-foreground)] shadow-lg shadow-[var(--app-ring)] transition-all hover:bg-[var(--app-primary-hover)] hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Add Block
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {overridesLoading && <p className="p-8 text-center text-sm font-bold text-zinc-400">Syncing overrides...</p>}
+            {!overridesLoading && overrides.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-zinc-200 bg-zinc-50/50 p-12 text-center">
+                <CalendarDaysIcon className="w-10 h-10 text-zinc-200 mx-auto mb-4" />
+                <p className="text-sm font-bold text-zinc-500">No active overrides</p>
+                <p className="mt-1 text-xs text-zinc-400 max-w-[180px] mx-auto leading-relaxed">
+                  Date-specific blocks will appear here when you add them.
+                </p>
+              </div>
+            )}
+            {overrides.map((item, idx) => (
+              <motion.div 
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="group relative rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:border-[var(--app-primary-soft-border)] hover:shadow-xl hover:shadow-[var(--app-ring)]"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-extrabold text-zinc-900 group-hover:text-[var(--app-primary)] transition-colors">
+                      {new Date(`${item.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                    <p className="mt-1 flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-tight">
+                      <ClockIcon className="h-3.5 w-3.5" />
+                      {item.isAllDay ? "All Day Unavailable" : `${item.startTime} - ${item.endTime}`}
+                    </p>
+                    {item.label && (
+                      <div className="mt-3 inline-flex rounded-lg bg-zinc-50 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 ring-1 ring-zinc-100">
+                        {item.label}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeOverride(item.id)}
+                    disabled={overrideDeletingId === item.id}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-100 bg-white text-zinc-400 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+                    title="Remove override"
+                  >
+                    {overrideDeletingId === item.id ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600" />
+                    ) : (
+                      <TrashIcon className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Weekly Hours Editor Drawer */}
+      <AnimatePresence>
+        {editOpen && (
+          <>
+            <DrawerBackdrop onClick={() => setEditOpen(false)} />
+            <motion.aside 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-8 shadow-2xl"
+            >
+              <div className="mb-8 flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-[var(--app-primary)]">Settings</p>
+                  <h3 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">Standard Hours</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(false)}
+                  className="rounded-xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {draft.map((row, idx) => (
+                  <div key={row.dayOfWeek} className={[
+                    "rounded-2xl border p-4 transition-all",
+                    row.enabled ? "border-zinc-200 bg-white shadow-sm" : "border-zinc-100 bg-zinc-50 opacity-75"
+                  ].join(" ")}>
+                    <div className="mb-4 flex items-center justify-between">
+                      <p className="text-sm font-bold text-zinc-900">{row.dayLabel}</p>
+                      
+                      {/* Premium Toggle Switch */}
+                      <button
+                        type="button"
+                        onClick={() => 
                           setDraft((prev) =>
-                            prev.map((d, i) => (i === idx ? { ...d, enabled: e.target.checked } : d)),
+                            prev.map((d, i) => (i === idx ? { ...d, enabled: !d.enabled } : d)),
                           )
                         }
+                        className={[
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                          row.enabled ? "bg-[var(--app-primary)]" : "bg-zinc-300"
+                        ].join(" ")}
+                      >
+                        <span className={[
+                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                          row.enabled ? "translate-x-5" : "translate-x-0"
+                        ].join(" ")} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_24px_1fr] items-center gap-2">
+                      <input
+                        type="time"
+                        value={row.startTime}
+                        disabled={!row.enabled}
+                        onChange={(e) =>
+                          setDraft((prev) =>
+                            prev.map((d, i) => (i === idx ? { ...d, startTime: e.target.value } : d)),
+                          )
+                        }
+                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold tabular-nums text-zinc-900 transition-all focus:border-[var(--app-primary)] focus:ring-2 focus:ring-[var(--app-ring)] disabled:opacity-30"
                       />
-                      Enabled
-                    </label>
+                      <span className="text-center font-bold text-zinc-300">-</span>
+                      <input
+                        type="time"
+                        value={row.endTime}
+                        disabled={!row.enabled}
+                        onChange={(e) =>
+                          setDraft((prev) =>
+                            prev.map((d, i) => (i === idx ? { ...d, endTime: e.target.value } : d)),
+                          )
+                        }
+                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold tabular-nums text-zinc-900 transition-all focus:border-[var(--app-primary)] focus:ring-2 focus:ring-[var(--app-ring)] disabled:opacity-30"
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-[1fr_12px_1fr] items-center gap-2">
+                ))}
+              </div>
+
+              <div className="sticky bottom-0 mt-8 flex items-center justify-end gap-3 border-t border-zinc-100 bg-white/80 pt-6 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(false)}
+                  className="rounded-2xl border border-zinc-200 px-6 py-3 text-sm font-bold text-zinc-600 transition-all hover:bg-zinc-50"
+                >
+                  Discard
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={saveWeeklyHours}
+                  className="rounded-2xl bg-[var(--app-primary)] px-8 py-3 text-sm font-bold text-[var(--app-primary-foreground)] shadow-lg shadow-[var(--app-ring)] transition-all hover:bg-[var(--app-primary-hover)] disabled:opacity-50"
+                >
+                  {saving ? "Syncing..." : "Apply Schedule"}
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Override Editor Drawer */}
+      <AnimatePresence>
+        {overrideOpen && (
+          <>
+            <DrawerBackdrop onClick={() => setOverrideOpen(false)} />
+            <motion.aside 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-8 shadow-2xl"
+            >
+              <div className="mb-8 flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-[var(--app-primary)]">One-time Block</p>
+                  <h3 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">Add Override</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOverrideOpen(false)}
+                  className="rounded-xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Pick Date</label>
+                  <input
+                    type="date"
+                    value={overrideDraft.date}
+                    onChange={(e) => setOverrideDraft((p) => ({ ...p, date: e.target.value }))}
+                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-900 transition-all focus:border-[var(--app-primary)] focus:ring-2 focus:ring-[var(--app-ring)]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+                  <span className="text-sm font-bold text-zinc-700">Unavailable all day</span>
+                  <button
+                    type="button"
+                    onClick={() => setOverrideDraft((p) => ({ ...p, isAllDay: !p.isAllDay }))}
+                    className={[
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                      overrideDraft.isAllDay ? "bg-[var(--app-primary)]" : "bg-zinc-300"
+                    ].join(" ")}
+                  >
+                    <span className={[
+                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                      overrideDraft.isAllDay ? "translate-x-5" : "translate-x-0"
+                    ].join(" ")} />
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Time Range</label>
+                  <div className="grid grid-cols-[1fr_24px_1fr] items-center gap-2">
                     <input
                       type="time"
-                      value={row.startTime}
-                      disabled={!row.enabled}
-                      onChange={(e) =>
-                        setDraft((prev) =>
-                          prev.map((d, i) => (i === idx ? { ...d, startTime: e.target.value } : d)),
-                        )
-                      }
-                      className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-500"
+                      value={overrideDraft.startTime}
+                      disabled={overrideDraft.isAllDay}
+                      onChange={(e) => setOverrideDraft((p) => ({ ...p, startTime: e.target.value }))}
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold tabular-nums text-zinc-900 transition-all focus:border-[var(--app-primary)] focus:ring-2 focus:ring-[var(--app-ring)] disabled:opacity-30"
                     />
-                    <span className="text-zinc-400">-</span>
+                    <span className="text-center font-bold text-zinc-300">-</span>
                     <input
                       type="time"
-                      value={row.endTime}
-                      disabled={!row.enabled}
-                      onChange={(e) =>
-                        setDraft((prev) =>
-                          prev.map((d, i) => (i === idx ? { ...d, endTime: e.target.value } : d)),
-                        )
-                      }
-                      className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-500"
+                      value={overrideDraft.endTime}
+                      disabled={overrideDraft.isAllDay}
+                      onChange={(e) => setOverrideDraft((p) => ({ ...p, endTime: e.target.value }))}
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold tabular-nums text-zinc-900 transition-all focus:border-[var(--app-primary)] focus:ring-2 focus:ring-[var(--app-ring)] disabled:opacity-30"
                     />
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="sticky bottom-0 mt-5 flex items-center justify-end gap-2 border-t border-zinc-100 bg-white pt-4">
-              <button
-                type="button"
-                onClick={() => setEditOpen(false)}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={saveWeeklyHours}
-                className="rounded-full bg-[var(--app-primary)] px-4 py-2 text-sm font-medium text-[var(--app-primary-foreground)] transition hover:bg-[var(--app-primary-hover)] disabled:opacity-60"
-              >
-                {saving ? "Saving..." : "Save hours"}
-              </button>
-            </div>
-          </aside>
-        </>
-      )}
-
-      {overrideOpen && (
-        <>
-          <DrawerBackdrop onClick={() => setOverrideOpen(false)} aria-label="Close override editor" />
-          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-zinc-200 bg-white p-5 shadow-2xl">
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Availability</p>
-                <h3 className="text-xl font-semibold tracking-tight text-zinc-900">Add date override</h3>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Label (Reason)</label>
+                  <input
+                    type="text"
+                    value={overrideDraft.label}
+                    onChange={(e) => setOverrideDraft((p) => ({ ...p, label: e.target.value }))}
+                    placeholder="Holiday, Dr. Appointment, etc."
+                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-900 transition-all focus:border-[var(--app-primary)] focus:ring-2 focus:ring-[var(--app-ring)]"
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setOverrideOpen(false)}
-                className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-                aria-label="Close override editor"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
 
-            <div className="space-y-4">
-              <label className="block text-sm text-zinc-700">
-                <span className="mb-1 block">Date</span>
-                <input
-                  type="date"
-                  value={overrideDraft.date}
-                  onChange={(e) => setOverrideDraft((p) => ({ ...p, date: e.target.value }))}
-                  className="w-full rounded-md border border-zinc-200 px-2 py-1.5 text-sm"
-                />
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm text-zinc-700">
-                <input
-                  type="checkbox"
-                  checked={overrideDraft.isAllDay}
-                  onChange={(e) => setOverrideDraft((p) => ({ ...p, isAllDay: e.target.checked }))}
-                />
-                Unavailable all day
-              </label>
-              <div className="grid grid-cols-[1fr_12px_1fr] items-center gap-2">
-                <input
-                  type="time"
-                  value={overrideDraft.startTime}
-                  disabled={overrideDraft.isAllDay}
-                  onChange={(e) => setOverrideDraft((p) => ({ ...p, startTime: e.target.value }))}
-                  className="w-full rounded-md border border-zinc-200 px-2 py-1.5 text-sm disabled:bg-zinc-100"
-                />
-                <span className="text-zinc-400">-</span>
-                <input
-                  type="time"
-                  value={overrideDraft.endTime}
-                  disabled={overrideDraft.isAllDay}
-                  onChange={(e) => setOverrideDraft((p) => ({ ...p, endTime: e.target.value }))}
-                  className="w-full rounded-md border border-zinc-200 px-2 py-1.5 text-sm disabled:bg-zinc-100"
-                />
+              <div className="sticky bottom-0 mt-12 flex items-center justify-end gap-3 border-t border-zinc-100 bg-white/80 pt-6 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => setOverrideOpen(false)}
+                  className="rounded-2xl border border-zinc-200 px-6 py-3 text-sm font-bold text-zinc-600 transition-all hover:bg-zinc-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={overrideSaving}
+                  onClick={addOverride}
+                  className="rounded-2xl bg-[var(--app-primary)] px-8 py-3 text-sm font-bold text-[var(--app-primary-foreground)] shadow-lg shadow-[var(--app-ring)] transition-all hover:bg-[var(--app-primary-hover)] disabled:opacity-50"
+                >
+                  {overrideSaving ? "Adding..." : "Add Override"}
+                </button>
               </div>
-              <label className="block text-sm text-zinc-700">
-                <span className="mb-1 block">Label (optional)</span>
-                <input
-                  type="text"
-                  value={overrideDraft.label}
-                  onChange={(e) => setOverrideDraft((p) => ({ ...p, label: e.target.value }))}
-                  placeholder="e.g. Personal work"
-                  className="w-full rounded-md border border-zinc-200 px-2 py-1.5 text-sm"
-                />
-              </label>
-            </div>
-
-            <div className="sticky bottom-0 mt-5 flex items-center justify-end gap-2 border-t border-zinc-100 bg-white pt-4">
-              <button
-                type="button"
-                onClick={() => setOverrideOpen(false)}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={overrideSaving}
-                onClick={addOverride}
-                className="rounded-full bg-[var(--app-primary)] px-4 py-2 text-sm font-medium text-[var(--app-primary-foreground)] transition hover:bg-[var(--app-primary-hover)] disabled:opacity-60"
-              >
-                {overrideSaving ? "Saving..." : "Save override"}
-              </button>
-            </div>
-          </aside>
-        </>
-      )}
-    </>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

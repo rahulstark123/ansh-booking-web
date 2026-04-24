@@ -1,8 +1,9 @@
 "use client";
 
-import { MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, PlusIcon, UserGroupIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { AddContactDrawer } from "@/components/contacts/AddContactDrawer";
 import { ContactDetailsDrawer } from "@/components/contacts/ContactDetailsDrawer";
@@ -85,55 +86,70 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Contacts</h1>
-        <p className="mt-1 text-sm text-zinc-600">
-          Your people database from bookings and invites. Track relationships, meetings, and follow-ups.
-        </p>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-auto max-w-6xl space-y-8 py-4"
+    >
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">Contacts</h1>
+          <p className="mt-2 text-base text-zinc-500 max-w-2xl">
+            Manage your relationship database. Track bookings, customer history, and meeting follow-ups in one centralized place.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openAddContact}
+          className="inline-flex items-center gap-2 rounded-2xl bg-[var(--app-primary)] px-6 py-3 text-sm font-bold text-[var(--app-primary-foreground)] shadow-lg shadow-[var(--app-ring)] transition-all hover:bg-[var(--app-primary-hover)] hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <PlusIcon className="h-5 w-5" />
+          Add Contact
+        </button>
       </div>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-3">
-            <div className="relative w-full max-w-sm">
-              <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+      <section className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
+            <div className="relative w-full max-w-md group">
+              <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-[var(--app-primary)]" />
               <input
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder="Search contacts"
-                className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2 pl-9 text-sm text-zinc-900 outline-none transition focus:border-[var(--app-focus-border)] focus:bg-white focus:ring-2 focus:ring-[var(--app-ring)]"
+                placeholder="Search by name or email..."
+                className="w-full rounded-2xl border border-zinc-200 bg-white py-3 pl-12 pr-4 text-sm font-medium text-zinc-900 shadow-sm outline-none transition-all focus:border-[var(--app-primary)] focus:ring-4 focus:ring-[var(--app-primary-soft)]"
               />
             </div>
-            <button
-              type="button"
-              onClick={openAddContact}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--app-primary)] px-3 py-2 text-xs font-medium text-[var(--app-primary-foreground)] hover:bg-[var(--app-primary-hover)]"
-            >
-              <PlusIcon className="h-4 w-4" />
-              New contact
-            </button>
+            
+            <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest tabular-nums">
+              <UserGroupIcon className="h-4 w-4" />
+              {total} total contacts
+            </div>
           </div>
 
-          <ContactTable
-            contacts={contacts}
-            filter={filter}
-            onFilterChange={(next) => {
-              setFilter(next);
-              setPage(1);
-            }}
-            selectedId={selected?.id ?? ""}
-            onSelect={setSelectedId}
-            page={page}
-            totalPages={totalPages}
-            total={total}
-            onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-            onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
-          />
-          {isError && <p className="mt-3 text-sm text-rose-600">Could not load contacts. Please refresh.</p>}
-          {isLoading && <p className="mt-3 text-sm text-zinc-500">Loading contacts...</p>}
+          <div className="rounded-3xl border border-zinc-200 bg-white p-2 shadow-sm">
+            <ContactTable
+              contacts={contacts}
+              filter={filter}
+              onFilterChange={(next) => {
+                setFilter(next);
+                setPage(1);
+              }}
+              selectedId={selected?.id ?? ""}
+              onSelect={setSelectedId}
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+              onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+              isLoading={isLoading}
+              isError={isError}
+            />
+          </div>
       </section>
 
       <ContactDetailsDrawer contact={!addOpen ? selected : null} onClose={() => setSelectedId("")} />
@@ -144,6 +160,6 @@ export default function ContactsPage() {
         onClose={closeAddContact}
         onSave={handleSaveContact}
       />
-    </div>
+    </motion.div>
   );
 }

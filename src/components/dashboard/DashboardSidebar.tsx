@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarIcon,
   ChevronLeftIcon,
@@ -51,67 +52,57 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <aside
-        className={[
-          "sticky top-0 flex min-h-0 h-[100dvh] shrink-0 flex-col border-r border-zinc-200/80 bg-white py-5 shadow-[1px_0_0_rgba(0,0,0,0.03)] transition-[width] duration-200 ease-out",
-          collapsed ? "w-[72px] px-2" : "w-[260px] px-3",
-        ].join(" ")}
+      <motion.aside
+        initial={false}
+        animate={{ width: collapsed ? 80 : 280 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="sticky top-0 z-40 flex h-screen shrink-0 flex-col border-r border-zinc-200 bg-white/80 backdrop-blur-xl shadow-[1px_0_0_rgba(0,0,0,0.02)]"
       >
-        <div className={["mb-4 flex items-center gap-2", collapsed ? "flex-col px-0" : "justify-between px-1"].join(" ")}>
+        {/* Header / Logo */}
+        <div className="flex h-20 items-center px-4">
           <Link
             href="/dashboard"
-            className={[
-              "flex min-w-0 items-center gap-3 rounded-lg transition-colors hover:bg-[var(--app-row-hover)]",
-              collapsed ? "justify-center p-2" : "flex-1 px-2 py-1.5",
-            ].join(" ")}
-            title="ANSH Bookings"
+            className="flex items-center gap-3 overflow-hidden rounded-xl p-1.5 transition-all hover:bg-zinc-50 active:scale-95"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--app-primary)] text-[var(--app-primary-foreground)] shadow-sm">
-              <Squares2X2Icon className="h-[17px] w-[17px]" aria-hidden />
-            </span>
-            {!collapsed && (
-              <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-zinc-900">ANSH Bookings</span>
-                <span className="mt-0.5 block text-[11px] font-normal text-zinc-500">Workspace</span>
-              </span>
-            )}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white shadow-lg shadow-zinc-200/50 dark:shadow-none ring-1 ring-zinc-800">
+              <Squares2X2Icon className="h-5 w-5" />
+            </div>
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="whitespace-nowrap"
+                >
+                  <span className="block text-sm font-bold tracking-tight text-zinc-900">ANSH Bookings</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400">Pro Workspace</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Link>
-
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-[var(--app-row-hover)] hover:text-zinc-700"
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? (
-              <ChevronRightIcon className="h-3.5 w-3.5" aria-hidden />
-            ) : (
-              <ChevronLeftIcon className="h-3.5 w-3.5" aria-hidden />
-            )}
-          </button>
         </div>
 
-        <div className={["relative mb-5", collapsed ? "flex justify-center" : ""].join(" ")}>
+        {/* New Booking Action */}
+        <div className="px-4 py-4">
           <button
             ref={newBookingButtonRef}
             type="button"
             onClick={openNewBookingModal}
-            title={collapsed ? "New booking" : undefined}
             className={[
-              "flex items-center justify-center rounded-lg bg-[var(--app-primary)] text-sm font-medium text-[var(--app-primary-foreground)] shadow-sm transition hover:bg-[var(--app-primary-hover)]",
-              collapsed ? "h-10 w-10 p-0" : "w-full gap-2 py-2.5",
+              "group relative flex items-center justify-center overflow-hidden rounded-xl bg-[var(--app-primary)] text-sm font-bold text-[var(--app-primary-foreground)] shadow-lg shadow-[var(--app-ring)] transition-all hover:bg-[var(--app-primary-hover)] active:scale-95 dark:shadow-none",
+              collapsed ? "h-12 w-12" : "h-12 w-full gap-3",
             ].join(" ")}
-            aria-label="New booking"
-            aria-haspopup="menu"
           >
-            <PlusIcon className="h-[18px] w-[18px] shrink-0" aria-hidden />
-            {!collapsed && <span>New booking</span>}
+            <PlusIcon className="h-5 w-5" />
+            {!collapsed && <span>New Booking</span>}
           </button>
           <NewBookingEventTypeDialog anchorRef={newBookingButtonRef} collapsed={collapsed} />
         </div>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden" aria-label="Dashboard">
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-none">
           {NAV_MAIN.map(({ href, label, icon: Icon }) => {
             const active = navActive(pathname, href);
             return (
@@ -120,82 +111,112 @@ export function DashboardSidebar() {
                 href={href}
                 title={collapsed ? label : undefined}
                 className={[
-                  "flex items-center rounded-lg text-[13px] font-medium transition-colors",
-                  collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
+                  "group relative flex items-center rounded-xl text-sm font-semibold transition-all",
+                  collapsed ? "h-12 justify-center" : "h-12 gap-3 px-3",
                   active
                     ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                    : "text-zinc-600 hover:bg-[var(--app-row-hover)] hover:text-zinc-900",
+                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900",
                 ].join(" ")}
               >
+                {active && (
+                  <motion.div
+                    layoutId="sidebar-active"
+                    className="absolute inset-0 rounded-xl border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] shadow-sm"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                
                 <Icon
                   className={[
-                    "h-[17px] w-[17px] shrink-0",
-                    active ? "text-[var(--app-primary-muted-icon)]" : "text-zinc-400",
+                    "relative z-10 h-5 w-5 shrink-0 transition-colors",
+                    active ? "text-[var(--app-primary)]" : "text-zinc-400 group-hover:text-zinc-600",
                   ].join(" ")}
-                  aria-hidden
                 />
-                {!collapsed && <span>{label}</span>}
+                
+                {!collapsed && (
+                  <span className="relative z-10 whitespace-nowrap">{label}</span>
+                )}
+                
+                {active && !collapsed && (
+                  <div className="absolute left-[-12px] h-6 w-1 rounded-r-full bg-[var(--app-primary)]" />
+                )}
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-auto shrink-0 border-t border-zinc-200 pt-3">
+        {/* Footer Navigation */}
+        <div className="space-y-1 border-t border-zinc-100 p-3">
           <Link
             href={BILLING_HREF}
-            title={collapsed ? "Billing" : undefined}
             className={[
-              "flex items-center rounded-lg text-[13px] font-medium transition-colors",
-              collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
+              "group relative flex h-12 items-center rounded-xl text-sm font-semibold transition-all",
+              collapsed ? "justify-center" : "gap-3 px-3",
               billingActive
                 ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                : "text-zinc-600 hover:bg-[var(--app-row-hover)] hover:text-zinc-900",
+                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900",
             ].join(" ")}
           >
-            <CreditCardIcon
-              className={[
-                "h-[17px] w-[17px] shrink-0",
-                billingActive ? "text-[var(--app-primary-muted-icon)]" : "text-zinc-400",
-              ].join(" ")}
-              aria-hidden
-            />
-            {!collapsed && <span>Billing</span>}
+            {billingActive && (
+              <motion.div
+                layoutId="sidebar-active-footer"
+                className="absolute inset-0 rounded-xl border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] shadow-sm"
+              />
+            )}
+            <CreditCardIcon className={["relative z-10 h-5 w-5", billingActive ? "text-[var(--app-primary)]" : "text-zinc-400"].join(" ")} />
+            {!collapsed && <span className="relative z-10">Billing</span>}
           </Link>
+
           <Link
             href={SETTINGS_HREF}
-            title={collapsed ? "Settings" : undefined}
             className={[
-              "mt-1 flex items-center rounded-lg text-[13px] font-medium transition-colors",
-              collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
+              "group relative flex h-12 items-center rounded-xl text-sm font-semibold transition-all",
+              collapsed ? "justify-center" : "gap-3 px-3",
               settingsActive
                 ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                : "text-zinc-600 hover:bg-[var(--app-row-hover)] hover:text-zinc-900",
+                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900",
             ].join(" ")}
           >
-            <Cog6ToothIcon
-              className={[
-                "h-[17px] w-[17px] shrink-0",
-                settingsActive ? "text-[var(--app-primary-muted-icon)]" : "text-zinc-400",
-              ].join(" ")}
-              aria-hidden
-            />
-            {!collapsed && <span>Settings</span>}
+            {settingsActive && (
+              <motion.div
+                layoutId="sidebar-active-footer"
+                className="absolute inset-0 rounded-xl border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] shadow-sm"
+              />
+            )}
+            <Cog6ToothIcon className={["relative z-10 h-5 w-5", settingsActive ? "text-[var(--app-primary)]" : "text-zinc-400"].join(" ")} />
+            {!collapsed && <span className="relative z-10">Settings</span>}
           </Link>
+
           <button
             type="button"
             onClick={() => setAppearanceOpen(true)}
-            title={collapsed ? "Appearance" : undefined}
             className={[
-              "mt-2 flex w-full items-center rounded-lg text-[13px] font-medium transition-colors",
-              collapsed ? "justify-center px-2 py-2.5" : "gap-3 py-2.5 pr-3 pl-2.5",
-              "text-zinc-600 hover:bg-[var(--app-row-hover)] hover:text-zinc-900",
+              "group flex h-12 w-full items-center rounded-xl text-sm font-semibold text-zinc-500 transition-all hover:bg-zinc-50 hover:text-zinc-900",
+              collapsed ? "justify-center" : "gap-3 px-3",
             ].join(" ")}
           >
-            <PaintBrushIcon className="h-[17px] w-[17px] shrink-0 text-zinc-400" aria-hidden />
+            <PaintBrushIcon className="h-5 w-5 text-zinc-400 group-hover:text-zinc-600" />
             {!collapsed && <span>Appearance</span>}
           </button>
+
+          {/* Toggle Sidebar Button */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="mt-4 flex h-10 w-full items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-600"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <ChevronRightIcon className="h-4 w-4" />
+            ) : (
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest">
+                <ChevronLeftIcon className="h-3.5 w-3.5" />
+                <span>Collapse</span>
+              </div>
+            )}
+          </button>
         </div>
-      </aside>
+      </motion.aside>
       <AppearanceModal open={appearanceOpen} onClose={() => setAppearanceOpen(false)} />
     </>
   );

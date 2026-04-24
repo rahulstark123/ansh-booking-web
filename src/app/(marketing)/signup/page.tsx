@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { LoginShowcaseCarousel } from "@/components/auth/LoginShowcaseCarousel";
+import { AuthShowcase } from "@/components/auth/AuthShowcase";
 import { SignupForm } from "@/components/auth/SignupForm";
 
 export const metadata: Metadata = {
@@ -11,31 +11,44 @@ export const metadata: Metadata = {
 
 export default function SignupPage() {
   return (
-    <div className="min-h-screen bg-[#f7f8fc]">
-      <div className="grid min-h-screen w-full overflow-hidden bg-white lg:grid-cols-2">
-        <div className="hidden border-r border-zinc-200 lg:block">
-          <LoginShowcaseCarousel />
+    <div className="min-h-screen bg-white">
+      <div className="grid min-h-screen w-full lg:grid-cols-2">
+        {/* Left Side: Premium Showcase */}
+        <div className="hidden lg:block relative overflow-hidden">
+          <AuthShowcase />
         </div>
 
-        <div className="flex h-full min-h-screen items-center justify-center p-6 sm:p-8 lg:p-10">
-          <div className="w-full max-w-md">
+        {/* Right Side: Signup Form */}
+        <div className="flex flex-col items-center justify-center p-8 sm:p-12 lg:p-16 xl:p-24 bg-white relative overflow-hidden">
+          {/* Subtle background element for form side */}
+          <div className="absolute top-0 right-0 w-[40%] h-[30%] bg-blue-50/30 rounded-full blur-[80px] pointer-events-none" />
+          
+          <div className="w-full max-w-[400px] relative z-10">
             <div className="mb-8 flex items-center justify-between">
               <div />
               <Link
                 href="/"
-                className="text-xs font-medium text-[var(--app-primary)] transition hover:text-[var(--app-primary-hover)]"
+                className="text-xs font-semibold text-teal-600 uppercase tracking-wider hover:text-teal-700 transition-colors"
               >
                 Back to site
               </Link>
             </div>
 
-            <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">Create account</h1>
-            <p className="mt-2 max-w-sm text-sm leading-relaxed text-zinc-600">
-              Start managing your meetings, contacts, and integrations in one workspace.
-            </p>
+            <div className="mb-10">
+              <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+                Create account
+              </h1>
+              <p className="mt-3 text-zinc-600 leading-relaxed">
+                Join thousands of teams managing their scheduling with ANSH.
+              </p>
+            </div>
 
-            <div className="mt-8">
-              <SignupForm />
+            <SignupForm />
+            
+            <div className="mt-10 pt-8 border-t border-zinc-100">
+              <p className="text-center text-sm text-zinc-500">
+                &copy; {new Date().getFullYear()} ANSH Bookings. All rights reserved.
+              </p>
             </div>
           </div>
         </div>

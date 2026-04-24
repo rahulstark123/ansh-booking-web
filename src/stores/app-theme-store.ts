@@ -52,6 +52,7 @@ export const APP_FONT_STACKS: Record<AppFontFamily, string> = {
 export const APP_THEME_CSS: Record<AppThemeId, Record<string, string>> = {
   ocean: {
     "--app-primary": "#1d6ff2",
+    "--app-primary-rgb": "29, 111, 242",
     "--app-primary-hover": "#1558c7",
     "--app-primary-foreground": "#ffffff",
     "--app-primary-soft": "#edf4ff",
@@ -66,6 +67,7 @@ export const APP_THEME_CSS: Record<AppThemeId, Record<string, string>> = {
   },
   "mood-indigo": {
     "--app-primary": "#4b51f7",
+    "--app-primary-rgb": "75, 81, 247",
     "--app-primary-hover": "#373dd6",
     "--app-primary-foreground": "#ffffff",
     "--app-primary-soft": "#eef0ff",
@@ -80,6 +82,7 @@ export const APP_THEME_CSS: Record<AppThemeId, Record<string, string>> = {
   },
   graphite: {
     "--app-primary": "#334155",
+    "--app-primary-rgb": "51, 65, 85",
     "--app-primary-hover": "#1f2937",
     "--app-primary-foreground": "#ffffff",
     "--app-primary-soft": "#f2f5f8",
@@ -94,6 +97,7 @@ export const APP_THEME_CSS: Record<AppThemeId, Record<string, string>> = {
   },
   jade: {
     "--app-primary": "#0d8e7b",
+    "--app-primary-rgb": "13, 142, 123",
     "--app-primary-hover": "#0a7464",
     "--app-primary-foreground": "#ffffff",
     "--app-primary-soft": "#ecfbf8",
@@ -108,6 +112,7 @@ export const APP_THEME_CSS: Record<AppThemeId, Record<string, string>> = {
   },
   aubergine: {
     "--app-primary": "#6b2bd8",
+    "--app-primary-rgb": "107, 43, 216",
     "--app-primary-hover": "#5522ad",
     "--app-primary-foreground": "#ffffff",
     "--app-primary-soft": "#f3ecff",
@@ -122,6 +127,7 @@ export const APP_THEME_CSS: Record<AppThemeId, Record<string, string>> = {
   },
   barbara: {
     "--app-primary": "#cb205f",
+    "--app-primary-rgb": "203, 32, 95",
     "--app-primary-hover": "#a71a4e",
     "--app-primary-foreground": "#ffffff",
     "--app-primary-soft": "#fff0f6",
@@ -136,6 +142,7 @@ export const APP_THEME_CSS: Record<AppThemeId, Record<string, string>> = {
   },
   clementine: {
     "--app-primary": "#b46005",
+    "--app-primary-rgb": "180, 96, 5",
     "--app-primary-hover": "#964d00",
     "--app-primary-foreground": "#ffffff",
     "--app-primary-soft": "#fff5e9",
@@ -150,6 +157,7 @@ export const APP_THEME_CSS: Record<AppThemeId, Record<string, string>> = {
   },
   lagoon: {
     "--app-primary": "#0b7ca6",
+    "--app-primary-rgb": "11, 124, 166",
     "--app-primary-hover": "#086687",
     "--app-primary-foreground": "#ffffff",
     "--app-primary-soft": "#edf8ff",

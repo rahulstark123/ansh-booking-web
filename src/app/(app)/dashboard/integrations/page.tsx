@@ -1,10 +1,11 @@
 "use client";
 
-import { CheckCircleIcon, LinkIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, LinkIcon, ArrowTopRightOnSquareIcon, CpuChipIcon } from "@heroicons/react/24/outline";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { siCashapp, siGmail, siGooglemeet, siZoom } from "simple-icons/icons";
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 
 import { queryKeys } from "@/lib/query-keys";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -59,7 +60,7 @@ const INTEGRATIONS: Integration[] = [
     name: "Razorpay",
     category: "Payments",
     description:
-      "Connect your Razorpay account to charge meeting fees on public booking links. Keys stay tied to your workspace.",
+      "Connect your Razorpay account to charge meeting fees on public booking links.",
     iconPath: siCashapp.path,
     iconColor: "#0C2451",
   },
@@ -157,28 +158,13 @@ export default function IntegrationsPage() {
     const zoomResult = params.get("zoom");
     if (zoomResult !== "connected" && zoomResult !== "error") return;
     void queryClient.invalidateQueries({ queryKey: queryKeys.integrations.root });
-    const reason = params.get("zoom_reason") ?? "";
     const url = new URL(window.location.href);
     url.searchParams.delete("zoom");
     url.searchParams.delete("zoom_reason");
     const qs = url.searchParams.toString();
     window.history.replaceState({}, "", `${url.pathname}${qs ? `?${qs}` : ""}`);
     if (zoomResult === "error") {
-      const hints: Record<string, string> = {
-        zoom_denied: "Zoom sign-in was cancelled or Zoom returned an error. Try Connect again and choose Allow.",
-        session:
-          "Your browser did not send the OAuth cookies (state/PKCE). Use the exact same URL you started from (localhost vs 127.0.0.1 vs port). Restart dev server, try another browser or disable strict tracking blocking, then Connect again.",
-        no_database:
-          "This server has no database connection (DATABASE_URL / Prisma). Fix env and redeploy.",
-        no_profile:
-          "No row in user_profiles for your account. Open the app once after signup or complete onboarding so your profile exists.",
-        zoom_token:
-          "Zoom rejected the code exchange. Check ZOOM_CLIENT_ID/SECRET, redirect URI in Zoom matches ZOOM_REDIRECT_URI (production) or localhost callback (dev), and scopes are enabled in the Zoom app.",
-        save_failed:
-          "Saving the connection failed. Most often: run `npx prisma migrate deploy` (or migrate dev) so the database has the ZOOM value on IntegrationProvider. Check server logs for the exact Prisma error.",
-      };
-      const detail = hints[reason] ?? hints.save_failed;
-      window.alert(`Zoom did not connect.\n\n${detail}`);
+      window.alert(`Zoom did not connect. Please check your settings.`);
     }
   }, [queryClient]);
 
@@ -287,57 +273,85 @@ export default function IntegrationsPage() {
   const connectedCount = useMemo(() => Object.values(connected).filter(Boolean).length, [connected]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Integrations</h1>
-        <p className="mt-1 text-sm text-zinc-600">
-          Connect your core tools to make scheduling seamless across email and video meetings.
-        </p>
-        <p className="mt-3 text-xs font-medium text-zinc-500">
-          {connectedCount} of {INTEGRATIONS.length} connected
-        </p>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-auto max-w-6xl space-y-8 py-4"
+    >
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 px-2">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">Integrations</h1>
+          <p className="mt-2 text-base text-zinc-500 max-w-2xl">
+            Connect your workspace to the world. Synchronize calendars, automate video meeting links, and process payments effortlessly.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-zinc-200 shadow-sm">
+          <CpuChipIcon className="h-5 w-5 text-[var(--app-primary)]" />
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 leading-none">Status</span>
+            <span className="text-sm font-bold text-zinc-900 mt-1">
+              {connectedCount} / {INTEGRATIONS.length} <span className="text-zinc-400 font-medium">Connected</span>
+            </span>
+          </div>
+        </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {INTEGRATIONS.map((item) => {
+      <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {INTEGRATIONS.map((item, idx) => {
           const isConnected = connected[item.key];
+          const isLoading = 
+            (item.key === "google-meet" && loadingGoogle) ||
+            (item.key === "zoom" && loadingZoom) ||
+            (item.key === "cashfree" && loadingCashfree) ||
+            (item.key === "razorpay" && loadingRazorpay);
 
           return (
-            <article key={item.key} className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-50 ring-1 ring-zinc-200">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-[22px] w-[22px]"
-                      role="img"
-                      aria-hidden
-                    >
-                      <path d={item.iconPath} fill={item.iconColor} />
-                    </svg>
-                  </span>
-                  <div>
-                    <h2 className="text-sm font-semibold text-zinc-900">{item.name}</h2>
-                    <p className="text-xs text-zinc-500">{item.category}</p>
-                  </div>
+            <motion.article 
+              key={item.key}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: idx * 0.05 }}
+              className="group relative flex flex-col rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:shadow-[var(--app-primary-soft)] hover:-translate-y-1"
+            >
+              <div className="mb-6 flex items-start justify-between">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-50 ring-1 ring-zinc-100 transition-all group-hover:scale-110 group-hover:shadow-md">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-8 w-8"
+                    role="img"
+                    aria-hidden
+                  >
+                    <path d={item.iconPath} fill={item.iconColor} />
+                  </svg>
                 </div>
 
-                <span
-                  className={[
-                    "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium",
-                    isConnected
-                      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                      : "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200",
-                  ].join(" ")}
-                >
-                  {isConnected && <CheckCircleIcon className="h-3.5 w-3.5" />}
-                  {isConnected ? "Connected" : "Not connected"}
-                </span>
+                <div className={[
+                  "inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all",
+                  isConnected
+                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50"
+                    : "bg-zinc-50 text-zinc-400 ring-1 ring-zinc-200/50",
+                ].join(" ")}>
+                  {isConnected ? (
+                    <>
+                      <CheckCircleIcon className="h-3.5 w-3.5" />
+                      Connected
+                    </>
+                  ) : "Inactive"}
+                </div>
               </div>
 
-              <p className="min-h-[48px] text-sm leading-relaxed text-zinc-600">{item.description}</p>
+              <div className="mb-4">
+                <h2 className="text-lg font-extrabold text-zinc-900 group-hover:text-[var(--app-primary)] transition-colors">{item.name}</h2>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-1">{item.category}</p>
+              </div>
 
-              <div className="mt-4 flex items-center justify-between">
+              <p className="mb-8 flex-grow text-sm font-medium leading-relaxed text-zinc-500">
+                {item.description}
+              </p>
+
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() =>
@@ -352,61 +366,65 @@ export default function IntegrationsPage() {
                             : toggleIntegration(item.key)
                   }
                   disabled={
-                    (item.key === "google-meet" && loadingGoogle) ||
-                    (item.key === "zoom" && (loadingZoom || !zoomOAuthConfigured)) ||
-                    (item.key === "cashfree" && (loadingCashfree || !cashfreeConfigured)) ||
-                    (item.key === "razorpay" && loadingRazorpay)
+                    isLoading ||
+                    (item.key === "zoom" && !zoomOAuthConfigured) ||
+                    (item.key === "cashfree" && !cashfreeConfigured)
                   }
                   className={[
-                    "rounded-md px-3 py-2 text-xs font-medium transition",
+                    "flex-grow rounded-2xl px-4 py-3 text-xs font-bold transition-all active:scale-[0.98]",
                     isConnected
-                      ? "border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
-                      : "bg-[var(--app-primary)] text-[var(--app-primary-foreground)] hover:bg-[var(--app-primary-hover)]",
-                    (item.key === "google-meet" && loadingGoogle) ||
-                    (item.key === "zoom" && (loadingZoom || !zoomOAuthConfigured)) ||
-                    (item.key === "cashfree" && (loadingCashfree || !cashfreeConfigured)) ||
-                    (item.key === "razorpay" && loadingRazorpay)
-                      ? "opacity-60"
-                      : "",
+                      ? "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+                      : "bg-[var(--app-primary)] text-white shadow-lg shadow-[var(--app-primary-soft)] hover:bg-[var(--app-primary-hover)]",
+                    isLoading ? "opacity-50 cursor-not-allowed" : ""
                   ].join(" ")}
                 >
-                  {item.key === "google-meet" && loadingGoogle
-                    ? "Checking..."
-                    : item.key === "zoom" && loadingZoom
-                      ? "Checking..."
-                      : item.key === "cashfree" && loadingCashfree
-                        ? "Checking..."
-                        : item.key === "razorpay" && loadingRazorpay
-                          ? "Checking..."
-                          : item.key === "zoom" && !zoomOAuthConfigured
-                            ? "Set env first"
-                            : item.key === "cashfree" && !cashfreeConfigured
-                              ? "Set env first"
-                              : isConnected
-                                ? "Disconnect"
-                                : "Connect"}
+                  {isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Syncing...
+                    </span>
+                  ) : item.key === "zoom" && !zoomOAuthConfigured ? (
+                    "Environment missing"
+                  ) : item.key === "cashfree" && !cashfreeConfigured ? (
+                    "Environment missing"
+                  ) : isConnected ? (
+                    "Disconnect"
+                  ) : (
+                    "Connect Account"
+                  )}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (item.key === "razorpay") router.push("/dashboard/integrations/razorpay");
-                  }}
-                  className={[
-                    "inline-flex items-center gap-1 text-xs font-medium transition",
-                    item.key === "razorpay"
-                      ? "text-[var(--app-primary)] hover:underline"
-                      : "text-zinc-500 hover:text-zinc-700",
-                  ].join(" ")}
-                >
-                  <LinkIcon className="h-3.5 w-3.5" />
-                  {item.key === "razorpay" ? "Setup" : "Details"}
-                </button>
+                {isConnected && item.key === "razorpay" && (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/dashboard/integrations/razorpay")}
+                    className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white border border-zinc-200 text-zinc-500 transition-all hover:bg-zinc-50 hover:text-[var(--app-primary)] hover:border-[var(--app-primary)]"
+                    title="Configure details"
+                  >
+                    <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                  </button>
+                )}
               </div>
-            </article>
+            </motion.article>
           );
         })}
       </section>
-    </div>
+
+      {/* Help Section */}
+      <div className="rounded-3xl bg-zinc-900 p-8 text-white shadow-2xl relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+          <LinkIcon className="h-32 w-32 -rotate-12" />
+        </div>
+        <div className="relative z-10 max-w-xl">
+          <h3 className="text-xl font-bold">Need a specific integration?</h3>
+          <p className="mt-2 text-zinc-400 font-medium">
+            We are constantly expanding our ecosystem. If you need a custom webhook or a specific CRM sync, please let us know.
+          </p>
+          <button className="mt-6 rounded-xl bg-white/10 px-6 py-2.5 text-sm font-bold transition-all hover:bg-white/20 active:scale-95">
+            Request Integration
+          </button>
+        </div>
+      </div>
+    </motion.div>
   );
 }

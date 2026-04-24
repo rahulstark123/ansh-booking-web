@@ -60,54 +60,88 @@ body {
 
 /* Dashboard dark mode only — never override marketing/landing (see MarketingThemeGuard). */
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) {
-  --background: #0b1220;
-  --foreground: #e5ecfa;
+  --background: #030711; /* Deepest blue-black */
+  --foreground: #f8fafc;
+  --app-row-hover: rgba(255, 255, 255, 0.03);
 }
 
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) body {
-  background:
-    radial-gradient(circle at 10% 0%, rgba(31, 58, 103, 0.18), transparent 40%),
-    radial-gradient(circle at 100% 100%, rgba(137, 80, 27, 0.12), transparent 44%),
-    var(--background);
+  background: 
+    radial-gradient(circle at 0% 0%, rgba(var(--app-primary-rgb, 13, 148, 136), 0.15), transparent 35%),
+    radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.08), transparent 35%),
+    #030711;
+  background-attachment: fixed;
+}
+
+/* Sidebar & TopBar Premium Dark Integration */
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) aside,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) header {
+  background-color: rgba(3, 7, 17, 0.75) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Card Styling for Dark Mode */
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) section,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .rounded-xl,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .rounded-2xl {
+  background-color: rgba(17, 24, 39, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
 }
 
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) .bg-white {
-  background-color: #111a2e !important;
+  background-color: rgba(17, 24, 39, 0.4) !important;
 }
 
+/* Text Refinement */
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-900 {
-  color: #eaf0ff !important;
+  color: #ffffff !important;
 }
 
-html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-800,
-html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-700 {
-  color: #cfdaf2 !important;
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-800 {
+  color: #f1f5f9 !important;
 }
 
-html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-600,
-html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-500 {
-  color: #9db0d4 !important;
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-700,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-600 {
+  color: #cbd5e1 !important;
 }
 
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-500,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .text-zinc-400 {
+  color: #94a3b8 !important;
+}
+
+/* Border Refinement */
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) .border-zinc-200,
-html[data-app-mode="dark"]:not([data-marketing-page="true"]) .border-zinc-100,
-html[data-app-mode="dark"]:not([data-marketing-page="true"]) .border-zinc-300 {
-  border-color: #2a3752 !important;
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) .border-zinc-100 {
+  border-color: rgba(255, 255, 255, 0.06) !important;
 }
 
+/* Inputs in Dark Mode */
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) input,
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) textarea {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+html[data-app-mode="dark"]:not([data-marketing-page="true"]) input:focus {
+  border-color: var(--app-primary) !important;
+  background-color: rgba(15, 23, 42, 0.8) !important;
+}
+
+/* Dashboard Specifics */
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) .bg-zinc-50,
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) .bg-zinc-100 {
-  background-color: #1a2740 !important;
+  background-color: rgba(30, 41, 59, 0.4) !important;
 }
 
-/* Dark-mode hover harmonization for existing utility classes used across app */
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) .hover\:bg-zinc-50:hover,
 html[data-app-mode="dark"]:not([data-marketing-page="true"]) .hover\:bg-zinc-100:hover {
-  background-color: var(--app-row-hover) !important;
-}
-
-html[data-app-mode="dark"]:not([data-marketing-page="true"]) .hover\:text-zinc-900:hover {
-  color: #eaf0ff !important;
+  background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
 /* Global focus visibility: clear cursor/focus location for keyboard + accessibility */

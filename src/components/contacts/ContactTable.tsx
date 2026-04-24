@@ -1,6 +1,7 @@
 "use client";
 
-import { FunnelIcon } from "@heroicons/react/24/outline";
+import { FunnelIcon, ChevronLeftIcon, ChevronRightIcon, UserIcon, BuildingOfficeIcon, CalendarIcon, ClockIcon } from "@heroicons/react/24/outline";
+import { motion, AnimatePresence } from "framer-motion";
 
 import type { Contact, FilterId } from "@/lib/contacts-data";
 
@@ -15,6 +16,8 @@ export function ContactTable({
   total,
   onPrevPage,
   onNextPage,
+  isLoading,
+  isError
 }: {
   contacts: Contact[];
   filter: FilterId;
@@ -26,81 +29,137 @@ export function ContactTable({
   total: number;
   onPrevPage: () => void;
   onNextPage: () => void;
+  isLoading?: boolean;
+  isError?: boolean;
 }) {
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
-          <FunnelIcon className="h-3.5 w-3.5" />
-          Filters
-        </span>
-        {(["all", "VIP", "Warm", "Trial", "No meetings"] as const).map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => onFilterChange(f)}
-            className={[
-              "rounded-md border px-2.5 py-1 text-xs font-medium transition",
-              filter === f
-                ? "border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",
-            ].join(" ")}
-          >
-            {f}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 p-4">
+        <div className="relative flex items-center bg-zinc-100/80 p-1 rounded-xl ring-1 ring-zinc-200 self-start sm:self-auto">
+          {(["all", "VIP", "Warm", "Trial", "No meetings"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => onFilterChange(f)}
+              className={[
+                "relative px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors z-10",
+                filter === f ? "text-[var(--app-primary)]" : "text-zinc-500 hover:text-zinc-700"
+              ].join(" ")}
+            >
+              {f}
+              {filter === f && (
+                <motion.div
+                  layoutId="contactFilter"
+                  className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200">
-        <div className="grid grid-cols-[1.6fr_1.2fr_1fr_1fr] gap-2 bg-zinc-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+      <div className="min-w-full">
+        <div className="grid grid-cols-[1.5fr_1.2fr_1fr_1fr] gap-4 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-50">
           <span>Contact</span>
-          <span>Company</span>
-          <span>Last meeting</span>
-          <span>Next meeting</span>
+          <span>Organization</span>
+          <span>Last Touch</span>
+          <span>Next Up</span>
         </div>
-        <ul className="divide-y divide-zinc-100">
-          {contacts.map((c) => (
-            <li key={c.id}>
+
+        {isError && (
+          <div className="p-12 text-center">
+            <p className="text-sm font-bold text-rose-500">Failed to sync contacts</p>
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="space-y-1 p-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-14 w-full animate-pulse rounded-2xl bg-zinc-50" />
+            ))}
+          </div>
+        )}
+
+        {!isLoading && !isError && contacts.length === 0 && (
+          <div className="p-16 text-center">
+            <UserIcon className="h-10 w-10 text-zinc-200 mx-auto mb-4" />
+            <p className="text-sm font-bold text-zinc-400">No matching contacts found</p>
+          </div>
+        )}
+
+        <ul className="divide-y divide-zinc-50 px-2 py-2">
+          {contacts.map((c, idx) => (
+            <motion.li 
+              key={c.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.03 }}
+            >
               <button
                 type="button"
                 onClick={() => onSelect(c.id)}
                 className={[
-                  "grid w-full grid-cols-[1.6fr_1.2fr_1fr_1fr] gap-2 px-3 py-2.5 text-left text-sm transition",
-                  selectedId === c.id ? "bg-[var(--app-primary-soft)]" : "hover:bg-zinc-50",
+                  "grid w-full grid-cols-[1.5fr_1.2fr_1fr_1fr] gap-4 rounded-2xl px-4 py-3.5 text-left text-sm transition-all",
+                  selectedId === c.id ? "bg-[var(--app-primary-soft)] ring-1 ring-[var(--app-primary-soft-border)]" : "hover:bg-zinc-50",
                 ].join(" ")}
               >
-                <span className="min-w-0">
-                  <span className="block truncate font-medium text-zinc-900">{c.name}</span>
-                  <span className="block truncate text-xs text-zinc-500">{c.email}</span>
-                </span>
-                <span className="truncate text-zinc-700">{c.company}</span>
-                <span className="text-zinc-600">{c.lastMeeting}</span>
-                <span className="text-zinc-600">{c.nextMeeting}</span>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={[
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold transition-all",
+                    selectedId === c.id ? "bg-[var(--app-primary)] text-white scale-110 shadow-md" : "bg-zinc-100 text-zinc-500"
+                  ].join(" ")}>
+                    {c.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block truncate font-extrabold text-zinc-900 leading-tight">{c.name}</span>
+                    <span className="block truncate text-xs font-medium text-zinc-500 mt-0.5">{c.email}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 truncate font-bold text-zinc-600">
+                  <BuildingOfficeIcon className="h-4 w-4 shrink-0 text-zinc-300" />
+                  <span className="truncate">{c.company || "Personal"}</span>
+                </div>
+
+                <div className="flex items-center gap-2 font-bold text-zinc-500">
+                  <ClockIcon className="h-4 w-4 shrink-0 text-zinc-300" />
+                  <span className="tabular-nums">{c.lastMeeting || "N/A"}</span>
+                </div>
+
+                <div className="flex items-center gap-2 font-bold text-zinc-900">
+                  <CalendarIcon className="h-4 w-4 shrink-0 text-[var(--app-primary)]" />
+                  <span className="tabular-nums">{c.nextMeeting || "Unscheduled"}</span>
+                </div>
               </button>
-            </li>
+            </motion.li>
           ))}
         </ul>
       </div>
-      <div className="mt-3 flex items-center justify-between">
-        <p className="text-xs text-zinc-500">
-          Page {page} of {totalPages} - {total} total
-        </p>
+
+      <div className="flex items-center justify-between border-t border-zinc-100 p-6 px-8">
+        <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest tabular-nums">
+          Page <span className="text-zinc-900">{page}</span> / {totalPages}
+          <span className="mx-3 text-zinc-200">|</span>
+          <span className="text-zinc-900">{total}</span> total
+        </div>
+
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onPrevPage}
             disabled={page <= 1}
-            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 transition-all hover:bg-zinc-50 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
           >
-            Back
+            <ChevronLeftIcon className="h-5 w-5" />
           </button>
           <button
             type="button"
             onClick={onNextPage}
             disabled={page >= totalPages}
-            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 transition-all hover:bg-zinc-50 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
           >
-            Next
+            <ChevronRightIcon className="h-5 w-5" />
           </button>
         </div>
       </div>
