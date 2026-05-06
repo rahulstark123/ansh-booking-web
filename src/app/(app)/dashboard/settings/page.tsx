@@ -11,10 +11,12 @@ import {
   PaintBrushIcon,
   ShieldCheckIcon,
   CloudArrowUpIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import TimezoneSelect from "react-timezone-select";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
@@ -92,7 +94,10 @@ export default function SettingsPage() {
   const [timeFormat, setTimeFormat] = useState(INITIAL_PROFILE.timeFormat);
   const [country, setCountry] = useState(INITIAL_PROFILE.country);
   const [timeZone, setTimeZone] = useState(INITIAL_PROFILE.timeZone);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [currentTime, setCurrentTime] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [applyLogoToOrg, setApplyLogoToOrg] = useState(INITIAL_BRANDING.applyLogoToOrg);
   const [usePlatformBranding, setUsePlatformBranding] = useState(INITIAL_BRANDING.usePlatformBranding);
   const [applyBrandingToOrg, setApplyBrandingToOrg] = useState(INITIAL_BRANDING.applyBrandingToOrg);
@@ -101,6 +106,35 @@ export default function SettingsPage() {
 
   const queryClient = useQueryClient();
   const userId = useAuthStore((s) => s.user?.id) ?? "";
+
+  const profileQ = useQuery({
+    queryKey: ["settings", "profile", userId],
+    queryFn: () => authorizedGetJson("/api/dashboard/settings/profile"),
+    enabled: Boolean(userId),
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (profileQ.data) {
+      if (typeof profileQ.data.fullName === "string") setName(profileQ.data.fullName);
+      if (typeof profileQ.data.welcomeMessage === "string") setWelcomeMessage(profileQ.data.welcomeMessage);
+      if (typeof profileQ.data.dateFormat === "string") setDateFormat(profileQ.data.dateFormat);
+      if (typeof profileQ.data.timeFormat === "string") setTimeFormat(profileQ.data.timeFormat);
+      if (typeof profileQ.data.timeZone === "string") setTimeZone(profileQ.data.timeZone);
+      if (typeof profileQ.data.avatarUrl === "string") setAvatarUrl(profileQ.data.avatarUrl);
+    }
+  }, [profileQ.data]);
+
+  const profileMutation = useMutation({
+    mutationFn: (data: any) => authorizedPatchJson("/api/dashboard/settings/profile", data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["settings", "profile", userId], data);
+      showToast({ kind: "success", title: "Profile updated", message: "Your profile settings were saved." });
+    },
+    onError: () => {
+      showToast({ kind: "error", title: "Update failed", message: "Could not save profile settings." });
+    },
+  });
 
   const brandingQ = useQuery({
     queryKey: ["settings", "branding", userId],
@@ -194,14 +228,13 @@ export default function SettingsPage() {
 
   const hasProfileChanges = useMemo(
     () =>
-      name !== INITIAL_PROFILE.name ||
-      welcomeMessage !== INITIAL_PROFILE.welcomeMessage ||
-      language !== INITIAL_PROFILE.language ||
-      dateFormat !== INITIAL_PROFILE.dateFormat ||
-      timeFormat !== INITIAL_PROFILE.timeFormat ||
-      country !== INITIAL_PROFILE.country ||
-      timeZone !== INITIAL_PROFILE.timeZone,
-    [country, dateFormat, language, name, timeFormat, timeZone, welcomeMessage],
+      name !== (profileQ.data?.fullName || INITIAL_PROFILE.name) ||
+      welcomeMessage !== (profileQ.data?.welcomeMessage || INITIAL_PROFILE.welcomeMessage) ||
+      dateFormat !== (profileQ.data?.dateFormat || INITIAL_PROFILE.dateFormat) ||
+      timeFormat !== (profileQ.data?.timeFormat || INITIAL_PROFILE.timeFormat) ||
+      timeZone !== (profileQ.data?.timeZone || INITIAL_PROFILE.timeZone) ||
+      avatarUrl !== (profileQ.data?.avatarUrl || ""),
+    [name, welcomeMessage, dateFormat, timeFormat, timeZone, avatarUrl, profileQ.data]
   );
 
   const hasBrandingChanges = useMemo(
@@ -218,9 +251,28 @@ export default function SettingsPage() {
     [myLinkSlug, mylinkQ.data]
   );
 
+  async function uploadImage(file: File, bucket: string): Promise<string> {
+    if (file.size > 500 * 1024) throw new Error("File exceeds 500KB limit.");
+    const client = await getSupabaseBrowserClient();
+    if (!client) throw new Error("No client");
+    const ext = file.name.split('.').pop();
+    const fileName = `${userId}/${Date.now()}.${ext}`;
+    const { error } = await client.storage.from(bucket).upload(fileName, file, { cacheControl: "3600", upsert: true });
+    if (error) throw error;
+    const { data } = client.storage.from(bucket).getPublicUrl(fileName);
+    return data.publicUrl;
+  }
+
   function handleProfileSave(e: FormEvent) {
     e.preventDefault();
-    showToast({ kind: "success", title: "Profile updated", message: "Your profile settings were saved." });
+    profileMutation.mutate({
+      fullName: name,
+      welcomeMessage,
+      dateFormat,
+      timeFormat,
+      timeZone,
+      avatarUrl,
+    });
   }
 
   function handleBrandingSave(e: FormEvent) {
@@ -292,18 +344,50 @@ export default function SettingsPage() {
                     </p>
 
                     <div className="mt-10 flex items-center gap-6 p-6 rounded-3xl bg-zinc-50 ring-1 ring-zinc-100">
-                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white shadow-inner text-zinc-300">
-                        <PhotoIcon className="h-10 w-10" />
+                      <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white shadow-inner text-zinc-300 overflow-hidden group">
+                        {avatarUrl ? (
+                          <>
+                            <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => setAvatarUrl("")}
+                                className="p-2 text-white hover:text-red-400 transition"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <PhotoIcon className="h-10 w-10" />
+                        )}
                       </div>
                       <div>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition hover:bg-zinc-50"
-                        >
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition hover:bg-zinc-50">
                           <CloudArrowUpIcon className="h-4 w-4" />
-                          Update Photo
-                        </button>
-                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">JPG, PNG or GIF • Max 5MB</p>
+                          {isUploadingAvatar ? "Uploading..." : "Update Photo"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              try {
+                                setIsUploadingAvatar(true);
+                                const url = await uploadImage(file, "avatars");
+                                setAvatarUrl(url);
+                                showToast({ kind: "success", title: "Success", message: "Profile picture uploaded." });
+                              } catch (err: any) {
+                                showToast({ kind: "error", title: "Upload failed", message: err.message });
+                              } finally {
+                                setIsUploadingAvatar(false);
+                                e.target.value = "";
+                              }
+                            }}
+                          />
+                        </label>
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">JPG, PNG or GIF • Max 500 KB</p>
                       </div>
                     </div>
 
@@ -341,16 +425,10 @@ export default function SettingsPage() {
                             {currentTime}
                           </span>
                         </div>
-                        <Select
+                        <TimezoneSelect
                           value={timeZone}
-                          options={["Asia/Kolkata", "Asia/Dubai", "Europe/London", "America/New_York"]}
-                          labels={{
-                            "Asia/Kolkata": "India Standard Time (IST)",
-                            "Asia/Dubai": "Gulf Standard Time (GST)",
-                            "Europe/London": "Greenwich Mean Time (GMT)",
-                            "America/New_York": "Eastern Time (EST)",
-                          }}
-                          onChange={setTimeZone}
+                          onChange={(val) => setTimeZone(typeof val === "string" ? val : val.value)}
+                          className="text-sm font-medium text-zinc-900"
                         />
                       </div>
 
@@ -358,16 +436,24 @@ export default function SettingsPage() {
                         <button
                           type="button"
                           disabled={!hasProfileChanges}
+                          onClick={() => {
+                            setName((profileQ.data?.fullName as string) || INITIAL_PROFILE.name);
+                            setWelcomeMessage((profileQ.data?.welcomeMessage as string) || INITIAL_PROFILE.welcomeMessage);
+                            setDateFormat((profileQ.data?.dateFormat as string) || INITIAL_PROFILE.dateFormat);
+                            setTimeFormat((profileQ.data?.timeFormat as string) || INITIAL_PROFILE.timeFormat);
+                            setTimeZone((profileQ.data?.timeZone as string) || INITIAL_PROFILE.timeZone);
+                            setAvatarUrl((profileQ.data?.avatarUrl as string) || "");
+                          }}
                           className="px-6 py-2 text-sm font-bold text-zinc-400 transition hover:text-zinc-600 disabled:opacity-30"
                         >
                           Reset
                         </button>
                         <button
                           type="submit"
-                          disabled={!hasProfileChanges}
+                          disabled={!hasProfileChanges || profileMutation.isPending}
                           className="rounded-2xl bg-[var(--app-primary)] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-[var(--app-primary-soft)] transition-all hover:bg-[var(--app-primary-hover)] disabled:opacity-50"
                         >
-                          Save Profile
+                          {profileMutation.isPending ? "Saving..." : "Save Profile"}
                         </button>
                       </div>
                     </form>
@@ -408,25 +494,47 @@ export default function SettingsPage() {
                         <h3 className="text-base font-bold text-zinc-900">Workspace Logo</h3>
                         <p className="mt-2 text-sm font-medium text-zinc-500">Your logo appears at the top of all booking links.</p>
                         
-                        <div className="mt-8 flex h-40 items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 text-xs font-bold text-zinc-400 uppercase tracking-widest overflow-hidden">
+                        <div className="mt-8 relative flex h-40 items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 text-xs font-bold text-zinc-400 uppercase tracking-widest overflow-hidden group">
                           {workspaceLogo ? (
-                             <img src={workspaceLogo} alt="Workspace Logo" className="h-full object-contain" />
+                            <>
+                              <img src={workspaceLogo} alt="Workspace Logo" className="h-full object-contain" />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => setWorkspaceLogo("")}
+                                  className="p-2 text-white hover:text-red-400 transition"
+                                >
+                                  <TrashIcon className="h-6 w-6" />
+                                </button>
+                              </div>
+                            </>
                           ) : (
                              "No Logo Uploaded"
                           )}
                         </div>
-                        <button
-                           type="button"
-                           onClick={() => {
-                             const url = window.prompt("Enter logo image URL:");
-                             if (url !== null) {
-                               setWorkspaceLogo(url);
-                             }
-                           }}
-                           className="mt-6 w-full rounded-2xl bg-zinc-900 py-3 text-sm font-bold text-white transition hover:bg-zinc-800"
-                        >
-                          {workspaceLogo ? "Change Workspace Logo" : "Upload Workspace Logo"}
-                        </button>
+                        <label className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-2xl bg-zinc-900 py-3 text-sm font-bold text-white transition hover:bg-zinc-800">
+                          {isUploadingLogo ? "Uploading..." : workspaceLogo ? "Change Workspace Logo" : "Upload Workspace Logo"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              try {
+                                setIsUploadingLogo(true);
+                                const url = await uploadImage(file, "avatars");
+                                setWorkspaceLogo(url);
+                                showToast({ kind: "success", title: "Success", message: "Workspace logo uploaded." });
+                              } catch (err: any) {
+                                showToast({ kind: "error", title: "Upload failed", message: err.message });
+                              } finally {
+                                setIsUploadingLogo(false);
+                                e.target.value = "";
+                              }
+                            }}
+                          />
+                        </label>
                       </div>
                     </div>
 

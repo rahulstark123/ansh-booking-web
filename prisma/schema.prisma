@@ -26,6 +26,11 @@ model UserProfile {
   platformBranding  Boolean            @default(true) @map("platform_branding")
   workspaceLogo     String?            @map("workspace_logo")
   linkSlug          String?            @unique @map("link_slug")
+  avatarUrl         String?            @map("avatar_url")
+  welcomeMessage    String?            @map("welcome_message")
+  dateFormat        String?            @map("date_format")
+  timeFormat        String?            @map("time_format")
+  timeZone          String?            @map("time_zone")
 
   @@map("user_profiles")
 }
