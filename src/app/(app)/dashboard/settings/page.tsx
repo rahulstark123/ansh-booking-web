@@ -14,12 +14,15 @@ import {
 } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { queryKeys } from "@/lib/query-keys";
+import { useAuthStore } from "@/stores/auth-store";
 
 const SETTINGS_ITEMS = [
   { id: "profile", label: "Profile", icon: IdentificationIcon },
   { id: "branding", label: "Branding", icon: PaintBrushIcon },
   { id: "my-link", label: "My Link", icon: LinkIcon },
-  { id: "communication", label: "Communication settings", icon: GlobeAltIcon },
   { id: "security", label: "Security", icon: ShieldCheckIcon },
 ] as const;
 type SettingsItemId = (typeof SETTINGS_ITEMS)[number]["id"];
@@ -39,6 +42,36 @@ const INITIAL_BRANDING = {
   usePlatformBranding: true,
   applyBrandingToOrg: false,
 };
+
+async function authorizedGetJson(url: string): Promise<Record<string, unknown>> {
+  const client = await getSupabaseBrowserClient();
+  if (!client) throw new Error("no_client");
+  const { data, error } = await client.auth.getSession();
+  if (error || !data.session?.access_token) throw new Error("no_session");
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${data.session.access_token}` },
+  });
+  if (!res.ok) throw new Error(`http_${res.status}`);
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+async function authorizedPatchJson(url: string, body: unknown): Promise<Record<string, unknown>> {
+  const client = await getSupabaseBrowserClient();
+  if (!client) throw new Error("no_client");
+  const { data, error } = await client.auth.getSession();
+  if (error || !data.session?.access_token) throw new Error("no_session");
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { 
+      Authorization: `Bearer ${data.session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`http_${res.status}`);
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
 
 const INITIAL_MY_LINK = {
   slug: "rahulraj9853045",
@@ -63,7 +96,85 @@ export default function SettingsPage() {
   const [applyLogoToOrg, setApplyLogoToOrg] = useState(INITIAL_BRANDING.applyLogoToOrg);
   const [usePlatformBranding, setUsePlatformBranding] = useState(INITIAL_BRANDING.usePlatformBranding);
   const [applyBrandingToOrg, setApplyBrandingToOrg] = useState(INITIAL_BRANDING.applyBrandingToOrg);
+  const [workspaceLogo, setWorkspaceLogo] = useState<string>("");
   const [myLinkSlug, setMyLinkSlug] = useState(INITIAL_MY_LINK.slug);
+
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((s) => s.user?.id) ?? "";
+
+  const brandingQ = useQuery({
+    queryKey: ["settings", "branding", userId],
+    queryFn: () => authorizedGetJson("/api/dashboard/settings/branding"),
+    enabled: Boolean(userId),
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (brandingQ.data) {
+      if (typeof brandingQ.data.usePlatformBranding === "boolean") {
+        setUsePlatformBranding(brandingQ.data.usePlatformBranding);
+      }
+      if (typeof brandingQ.data.workspaceLogo === "string") {
+        setWorkspaceLogo(brandingQ.data.workspaceLogo);
+      }
+    }
+  }, [brandingQ.data]);
+
+  const brandingMutation = useMutation({
+    mutationFn: (data: { usePlatformBranding: boolean; workspaceLogo: string }) =>
+      authorizedPatchJson("/api/dashboard/settings/branding", data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["settings", "branding", userId], data);
+      showToast({ kind: "success", title: "Branding updated", message: "Your branding settings were saved." });
+    },
+    onError: () => {
+      showToast({ kind: "error", title: "Update failed", message: "Could not save branding settings." });
+    },
+  });
+
+  const mylinkQ = useQuery({
+    queryKey: ["settings", "mylink", userId],
+    queryFn: () => authorizedGetJson("/api/dashboard/settings/mylink"),
+    enabled: Boolean(userId),
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (mylinkQ.data && typeof mylinkQ.data.linkSlug === "string") {
+      setMyLinkSlug(mylinkQ.data.linkSlug);
+    }
+  }, [mylinkQ.data]);
+
+  const mylinkMutation = useMutation({
+    mutationFn: (data: { linkSlug: string }) => authorizedPatchJson("/api/dashboard/settings/mylink", data),
+    onSuccess: (data: any) => {
+      queryClient.setQueryData(["settings", "mylink", userId], data);
+      showToast({ kind: "success", title: "URL updated", message: "Your personal link was saved." });
+    },
+    onError: (err: any) => {
+      showToast({ kind: "error", title: "Update failed", message: err.message || "Could not save your link slug." });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async () => {
+      const client = await getSupabaseBrowserClient();
+      if (!client) throw new Error("No client");
+      const { data: { user } } = await client.auth.getUser();
+      if (!user?.email) throw new Error("User email not found");
+      const { error } = await client.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/dashboard/settings`,
+      });
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      showToast({ kind: "success", title: "Email sent", message: "Password reset instructions sent to your email." });
+    },
+    onError: (err: any) => {
+      showToast({ kind: "error", title: "Failed to send", message: err.message || "Failed to send reset email." });
+    },
+  });
 
   useEffect(() => {
     const updateTime = () => {
@@ -96,12 +207,16 @@ export default function SettingsPage() {
   const hasBrandingChanges = useMemo(
     () =>
       applyLogoToOrg !== INITIAL_BRANDING.applyLogoToOrg ||
-      usePlatformBranding !== INITIAL_BRANDING.usePlatformBranding ||
+      usePlatformBranding !== (brandingQ.data?.usePlatformBranding ?? INITIAL_BRANDING.usePlatformBranding) ||
+      workspaceLogo !== (brandingQ.data?.workspaceLogo ?? "") ||
       applyBrandingToOrg !== INITIAL_BRANDING.applyBrandingToOrg,
-    [applyBrandingToOrg, applyLogoToOrg, usePlatformBranding],
+    [applyBrandingToOrg, applyLogoToOrg, usePlatformBranding, workspaceLogo, brandingQ.data],
   );
 
-  const hasMyLinkChanges = useMemo(() => myLinkSlug !== INITIAL_MY_LINK.slug, [myLinkSlug]);
+  const hasMyLinkChanges = useMemo(
+    () => myLinkSlug !== (mylinkQ.data?.linkSlug || ""),
+    [myLinkSlug, mylinkQ.data]
+  );
 
   function handleProfileSave(e: FormEvent) {
     e.preventDefault();
@@ -110,7 +225,7 @@ export default function SettingsPage() {
 
   function handleBrandingSave(e: FormEvent) {
     e.preventDefault();
-    showToast({ kind: "success", title: "Branding updated", message: "Your branding settings were saved." });
+    brandingMutation.mutate({ usePlatformBranding, workspaceLogo });
   }
 
   return (
@@ -293,11 +408,24 @@ export default function SettingsPage() {
                         <h3 className="text-base font-bold text-zinc-900">Workspace Logo</h3>
                         <p className="mt-2 text-sm font-medium text-zinc-500">Your logo appears at the top of all booking links.</p>
                         
-                        <div className="mt-8 flex h-40 items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                          No Logo Uploaded
+                        <div className="mt-8 flex h-40 items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 text-xs font-bold text-zinc-400 uppercase tracking-widest overflow-hidden">
+                          {workspaceLogo ? (
+                             <img src={workspaceLogo} alt="Workspace Logo" className="h-full object-contain" />
+                          ) : (
+                             "No Logo Uploaded"
+                          )}
                         </div>
-                        <button className="mt-6 w-full rounded-2xl bg-zinc-900 py-3 text-sm font-bold text-white transition hover:bg-zinc-800">
-                          Upload Workspace Logo
+                        <button
+                           type="button"
+                           onClick={() => {
+                             const url = window.prompt("Enter logo image URL:");
+                             if (url !== null) {
+                               setWorkspaceLogo(url);
+                             }
+                           }}
+                           className="mt-6 w-full rounded-2xl bg-zinc-900 py-3 text-sm font-bold text-white transition hover:bg-zinc-800"
+                        >
+                          {workspaceLogo ? "Change Workspace Logo" : "Upload Workspace Logo"}
                         </button>
                       </div>
                     </div>
@@ -305,17 +433,17 @@ export default function SettingsPage() {
                     <div className="flex justify-end gap-3 border-t border-zinc-100 pt-8">
                       <button
                         type="submit"
-                        disabled={!hasBrandingChanges}
+                        disabled={!hasBrandingChanges || brandingMutation.isPending}
                         className="rounded-2xl bg-[var(--app-primary)] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-[var(--app-primary-soft)] transition-all hover:bg-[var(--app-primary-hover)] disabled:opacity-50"
                       >
-                        Update Branding
+                        {brandingMutation.isPending ? "Updating..." : "Update Branding"}
                       </button>
                     </div>
                   </form>
                 )}
 
                 {activeSection === "my-link" && (
-                  <div className="space-y-10">
+                  <form className="space-y-10" onSubmit={(e) => { e.preventDefault(); mylinkMutation.mutate({ linkSlug: myLinkSlug }); }}>
                     <div>
                       <h2 className="text-xl font-black text-zinc-900">Personal Booking Link</h2>
                       <p className="mt-2 text-sm font-medium text-zinc-500">Changing your URL will break any existing links you have shared.</p>
@@ -328,27 +456,43 @@ export default function SettingsPage() {
                         <input
                           value={myLinkSlug}
                           onChange={(e) => setMyLinkSlug(e.target.value)}
-                          className="bg-transparent text-lg font-extrabold text-zinc-900 outline-none"
+                          placeholder="e.g. rahul-raj"
+                          className="bg-transparent text-lg font-extrabold text-zinc-900 outline-none w-full"
                         />
                       </div>
                     </div>
 
                     <div className="flex justify-end pt-8">
                       <button
-                        disabled={!hasMyLinkChanges}
+                        type="submit"
+                        disabled={!hasMyLinkChanges || mylinkMutation.isPending}
                         className="rounded-2xl bg-[var(--app-primary)] px-10 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-[var(--app-primary-soft)] transition-all hover:bg-[var(--app-primary-hover)] disabled:opacity-50"
                       >
-                        Save New URL
+                        {mylinkMutation.isPending ? "Saving..." : "Save New URL"}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 )}
                 
-                {(activeSection === "communication" || activeSection === "security") && (
-                   <div className="py-20 text-center">
-                     <ShieldCheckIcon className="h-16 w-16 mx-auto text-zinc-200 mb-6" />
-                     <h3 className="text-lg font-bold text-zinc-400 uppercase tracking-widest">Advanced Settings Ready</h3>
-                     <p className="mt-2 text-sm font-medium text-zinc-500">These configurations will be available in the next release.</p>
+                {activeSection === "security" && (
+                   <div className="space-y-10">
+                     <div>
+                       <h2 className="text-xl font-black text-zinc-900">Security Settings</h2>
+                       <p className="mt-2 text-sm font-medium text-zinc-500">Manage your account security and authentication methods.</p>
+                     </div>
+
+                     <div className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
+                       <h3 className="text-base font-bold text-zinc-900">Password Authentication</h3>
+                       <p className="mt-2 text-sm font-medium text-zinc-500">Secure your account by updating your password regularly.</p>
+                       
+                       <button
+                         onClick={() => resetPasswordMutation.mutate()}
+                         disabled={resetPasswordMutation.isPending}
+                         className="mt-6 rounded-2xl bg-zinc-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+                       >
+                         {resetPasswordMutation.isPending ? "Sending..." : "Send Password Reset Email"}
+                       </button>
+                     </div>
                    </div>
                 )}
               </motion.div>

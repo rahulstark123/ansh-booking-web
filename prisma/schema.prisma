@@ -23,6 +23,9 @@ model UserProfile {
   availabilityOverrides AvailabilityOverride[]
   subscriptions     Subscription[]
   transactions      Transaction[]
+  platformBranding  Boolean            @default(true) @map("platform_branding")
+  workspaceLogo     String?            @map("workspace_logo")
+  linkSlug          String?            @unique @map("link_slug")
 
   @@map("user_profiles")
 }

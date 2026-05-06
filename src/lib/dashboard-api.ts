@@ -28,17 +28,26 @@ export type ActivityItem = {
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+
 export async function fetchDashboardOverview(): Promise<DashboardOverview> {
-  await delay(280);
-  return {
-    bookingsTotal: 1284,
-    bookingsDeltaPct: 12,
-    revenueUsd: 42850,
-    revenueDeltaPct: 8.4,
-    newClients: 48,
-    scheduleFillPct: 85,
-    pendingRequests: 4,
-  };
+  const supabase = await getSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase client not available");
+  
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const res = await fetch("/api/dashboard/overview", {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load dashboard overview");
+  }
+
+  return res.json();
 }
 
 export async function fetchAgenda(): Promise<AgendaItem[]> {

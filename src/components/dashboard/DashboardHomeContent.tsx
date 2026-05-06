@@ -117,7 +117,7 @@ export function DashboardHomeContent() {
           color="blue"
         />
         <KpiCard
-          label="New Clients"
+          label="Clients"
           value={o?.newClients.toString() ?? "—"}
           delta="New"
           trend="neutral"

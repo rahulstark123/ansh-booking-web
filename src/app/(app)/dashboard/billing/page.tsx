@@ -17,7 +17,7 @@ const AVAILABLE_PLANS = [
     period: "forever",
     blurb: "Ideal for individuals and side projects.",
     features: ["Up to 20 bookings / month", "Single booking link", "Basic Email alerts"],
-    buttonLabel: "Current Plan",
+    buttonLabel: "Downgrade",
     highlight: false,
   },
   {
@@ -268,10 +268,6 @@ export default function BillingPage() {
           <section className="rounded-3xl border border-zinc-200 bg-white p-2 shadow-sm">
             <div className="flex items-center justify-between border-b border-zinc-50 p-6">
               <h2 className="text-lg font-extrabold text-zinc-900">Transaction History</h2>
-              <button className="inline-flex items-center gap-2 text-xs font-bold text-[var(--app-primary)] hover:underline">
-                <ArrowPathIcon className="h-4 w-4" />
-                Download All
-              </button>
             </div>
             
             <div className="overflow-x-auto">
