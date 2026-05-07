@@ -83,7 +83,9 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
     creator: "@anshapps",
   },
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+  verification: {
+    google: "6NT93y8x-9C64bHtGg16eLSai-vwWV4xodUzYOsdqoE",
+  },
   robots: {
     index: true,
     follow: true,
@@ -95,6 +97,12 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
