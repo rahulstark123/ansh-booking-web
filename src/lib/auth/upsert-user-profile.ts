@@ -4,6 +4,7 @@ export type ProfileUser = {
   name: string;
   plan: "FREE" | "PRO";
   role: "Free host" | "Pro host";
+  avatarUrl?: string | null;
 };
 
 /**

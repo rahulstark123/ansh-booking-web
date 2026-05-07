@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
   try {
     const existing = await prisma.userProfile.findUnique({
       where: { id: authUser.id },
-      select: { id: true, email: true, fullName: true, plan: true },
+      select: { id: true, email: true, fullName: true, plan: true, avatarUrl: true },
     });
     let profile;
     if (existing) {
@@ -152,6 +152,7 @@ export async function GET(req: NextRequest) {
         name: profile.fullName,
         plan: profile.plan,
         role: profile.plan === "PRO" ? "Pro host" : "Free host",
+        avatarUrl: profile.avatarUrl || null,
       },
     });
   } catch (error) {

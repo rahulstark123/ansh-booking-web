@@ -13,6 +13,7 @@ export type DashboardOverview = {
 export type AgendaItem = {
   id: string;
   time: string;
+  date: string;
   title: string;
   client: string;
   duration: string;
@@ -56,6 +57,7 @@ export async function fetchAgenda(): Promise<AgendaItem[]> {
     {
       id: "1",
       time: "09:00 AM",
+      date: "May 10",
       title: "Executive Consulting Session",
       client: "Priya Mehta",
       duration: "60 min",
@@ -63,6 +65,7 @@ export async function fetchAgenda(): Promise<AgendaItem[]> {
     {
       id: "2",
       time: "11:30 AM",
+      date: "May 10",
       title: "Design review",
       client: "Rahul Verma",
       duration: "45 min",
@@ -70,36 +73,46 @@ export async function fetchAgenda(): Promise<AgendaItem[]> {
     {
       id: "3",
       time: "02:00 PM",
+      date: "May 11",
       title: "Follow-up call",
       client: "Neha Kapoor",
       duration: "30 min",
+    },
+    {
+      id: "4",
+      time: "10:00 AM",
+      date: "May 12",
+      title: "Product Strategy",
+      client: "Amit Shah",
+      duration: "60 min",
+    },
+    {
+      id: "5",
+      time: "03:30 PM",
+      date: "May 12",
+      title: "Technical Interview",
+      client: "Suresh Raina",
+      duration: "45 min",
     },
   ];
 }
 
 export async function fetchActivity(): Promise<ActivityItem[]> {
-  await delay(200);
-  return [
-    {
-      id: "1",
-      type: "payment",
-      title: "Payment received",
-      subtitle: "₹4,500 · Initial consult",
-      time: "12 min ago",
+  const supabase = await getSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase client not available");
+  
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const res = await fetch("/api/dashboard/activity", {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
     },
-    {
-      id: "2",
-      type: "inquiry",
-      title: "New inquiry",
-      subtitle: "Website contact form",
-      time: "1 hr ago",
-    },
-    {
-      id: "3",
-      type: "reschedule",
-      title: "Meeting rescheduled",
-      subtitle: "Thu → Fri, same slot",
-      time: "3 hr ago",
-    },
-  ];
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load activities");
+  }
+
+  return res.json();
 }

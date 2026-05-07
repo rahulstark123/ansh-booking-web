@@ -21,6 +21,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauthBusy, setOauthBusy] = useState(false);
+  const [view, setView] = useState<"login" | "forgot">("login");
 
   useEffect(() => {
     if (user) router.replace("/dashboard");
@@ -112,6 +113,93 @@ export function LoginForm() {
     }
   }
 
+  async function handleForgotPassword(e: FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) {
+      showToast({ 
+        kind: "error", 
+        title: "Email required", 
+        message: "Please enter your email address to receive a reset link." 
+      });
+      return;
+    }
+    
+    setBusy(true);
+    try {
+      const client = await getSupabaseBrowserClient();
+      if (!client) return;
+      
+      const { error } = await client.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/dashboard/settings?reset=true`,
+      });
+      
+      if (error) {
+        showToast({ kind: "error", title: "Reset failed", message: error.message });
+      } else {
+        showToast({ 
+          kind: "success", 
+          title: "Reset link sent", 
+          message: "Check your email for the confirmation link to reset your password." 
+        });
+        setView("login");
+      }
+    } catch (err: any) {
+      showToast({ kind: "error", title: "Error", message: err.message || "An unexpected error occurred." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (view === "forgot") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="space-y-8"
+      >
+        <div>
+          <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Forgot Password</h2>
+          <p className="mt-2 text-sm font-medium text-zinc-500">
+            Enter your email address and we'll send you a link to reset your password.
+          </p>
+        </div>
+
+        <form onSubmit={handleForgotPassword} className="space-y-6">
+          <div className="space-y-1.5">
+            <label htmlFor="reset-email" className="text-xs font-bold uppercase tracking-wider text-zinc-500 ml-1">
+              Email Address
+            </label>
+            <input
+              id="reset-email"
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 py-3 text-sm text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full rounded-xl bg-zinc-900 py-3.5 text-sm font-bold text-white shadow-xl transition-all hover:bg-zinc-800 disabled:opacity-50 active:scale-[0.98]"
+          >
+            {busy ? "Sending..." : "Send Reset Confirmation"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setView("login")}
+            className="w-full text-center text-sm font-bold text-teal-600 hover:text-teal-700"
+          >
+            Back to Sign in
+          </button>
+        </form>
+      </motion.div>
+    );
+  }
+
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -159,9 +247,13 @@ export function LoginForm() {
                 <label htmlFor="login-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500">
                   Password
                 </label>
-                <Link href="#" className="text-[10px] font-bold uppercase tracking-wider text-teal-600 hover:text-teal-700">
+                <button
+                  type="button"
+                  onClick={() => setView("forgot")}
+                  className="text-[10px] font-bold uppercase tracking-wider text-teal-600 hover:text-teal-700 transition-colors"
+                >
                   Forgot?
-                </Link>
+                </button>
               </div>
               <input
                 id="login-password"

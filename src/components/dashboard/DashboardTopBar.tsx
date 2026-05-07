@@ -83,15 +83,19 @@ export function DashboardTopBar() {
             <p className="text-xs text-zinc-500">{user.role}</p>
           </div>
           <div
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-xs font-semibold text-[var(--app-primary-foreground)] shadow-sm"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-xs font-semibold text-[var(--app-primary-foreground)] shadow-sm overflow-hidden"
             aria-hidden
           >
-            {user.name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase()}
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+            ) : (
+              user.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()
+            )}
           </div>
           <button
             type="button"

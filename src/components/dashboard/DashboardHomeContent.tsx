@@ -134,7 +134,7 @@ export function DashboardHomeContent() {
               <div className="p-2 bg-[var(--app-primary-soft)] rounded-lg">
                 <ClockIcon className="w-5 h-5 text-[var(--app-primary)]" />
               </div>
-              <h2 className="text-lg font-bold text-zinc-900">Today&apos;s Agenda</h2>
+              <h2 className="text-lg font-bold text-zinc-900">Recent meetings</h2>
             </div>
             <Link
               href="/dashboard/meetings"
@@ -167,9 +167,10 @@ export function DashboardHomeContent() {
 
               {agenda.data?.map((item) => (
                 <li key={item.id} className="group relative flex items-start gap-6">
-                  <span className="w-16 shrink-0 pt-3 text-xs font-bold tabular-nums text-zinc-400 group-hover:text-[var(--app-primary)] transition-colors uppercase tracking-tight">
-                    {item.time}
-                  </span>
+                  <div className="w-16 shrink-0 pt-3 flex flex-col text-xs font-bold tabular-nums text-zinc-400 group-hover:text-[var(--app-primary)] transition-colors uppercase tracking-tight">
+                    <span>{item.date}</span>
+                    <span>{item.time}</span>
+                  </div>
                   
                   <div className="relative flex-1 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm transition-all hover:border-[var(--app-primary-soft-border)] hover:shadow-md hover:shadow-[var(--app-ring)]">
                     <div className="absolute left-[-31px] top-4 hidden sm:flex h-2.5 w-2.5 items-center justify-center rounded-full border-2 border-white bg-zinc-200 ring-4 ring-white group-hover:bg-[var(--app-primary)] group-hover:ring-[var(--app-primary-soft)] transition-all" />
@@ -207,9 +208,6 @@ export function DashboardHomeContent() {
           <motion.section variants={itemVariants} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500">Recent Activity</h2>
-              <button className="text-xs font-bold text-zinc-400 hover:text-zinc-600 transition-colors uppercase tracking-wider">
-                Clear all
-              </button>
             </div>
             
             <ul className="space-y-6">
@@ -254,16 +252,20 @@ export function DashboardHomeContent() {
               <div className="inline-flex p-2 bg-zinc-800 rounded-lg mb-4 ring-1 ring-zinc-700">
                 <RocketLaunchIcon className="w-5 h-5 text-[var(--app-primary-soft-border)]" />
               </div>
-              <h3 className="text-lg font-bold text-white tracking-tight">Upgrade to Elite</h3>
+              <h3 className="text-lg font-bold text-white tracking-tight">
+                {user?.plan === "PRO" ? "Pro Plan Active" : "Upgrade to Pro"}
+              </h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400 font-medium">
-                Unlock advanced routing, custom branding, and detailed analytics.
+                {user?.plan === "PRO" 
+                  ? "You have full access to advanced routing, custom branding, and detailed analytics."
+                  : "Unlock advanced routing, custom branding, and detailed analytics."}
               </p>
-              <button
-                type="button"
-                className="mt-6 w-full rounded-xl bg-white py-3 text-sm font-bold text-zinc-900 shadow-lg transition-all hover:bg-zinc-50 hover:scale-[1.02] active:scale-[0.98]"
+              <Link
+                href="/dashboard/billing"
+                className="mt-6 flex w-full items-center justify-center rounded-xl bg-white py-3 text-sm font-bold text-zinc-900 shadow-lg transition-all hover:bg-zinc-50 hover:scale-[1.02] active:scale-[0.98]"
               >
-                View Elite Plans
-              </button>
+                {user?.plan === "PRO" ? "Manage Subscription" : "View Pro Plans"}
+              </Link>
             </div>
           </motion.div>
         </div>

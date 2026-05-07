@@ -6,6 +6,7 @@ export type AuthUser = {
   email: string;
   role: "Free host" | "Pro host";
   plan: "FREE" | "PRO";
+  avatarUrl?: string | null;
 };
 
 type AuthState = {
