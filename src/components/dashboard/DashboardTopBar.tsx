@@ -4,8 +4,10 @@ import {
   ArrowRightStartOnRectangleIcon,
   BellIcon,
   MagnifyingGlassIcon,
+  LifebuoyIcon,
 } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -57,16 +59,14 @@ export function DashboardTopBar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        <span
-          className={[
-            "mr-1 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide",
-            planTag === "PRO"
-              ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-              : "bg-zinc-100 text-zinc-700",
-          ].join(" ")}
+        <Link
+          href="/dashboard/support"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-[var(--app-row-hover)] hover:text-[var(--app-primary)]"
+          aria-label="Support Center"
+          title="Support Center"
         >
-          {planTag}
-        </span>
+          <LifebuoyIcon className="h-[17px] w-[17px]" aria-hidden />
+        </Link>
         <button
           type="button"
           className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-[var(--app-row-hover)] hover:text-zinc-800"
