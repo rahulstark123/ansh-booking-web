@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useAvailabilityOverrides } from "@/hooks/use-availability-overrides";
 import { useWeeklyAvailability } from "@/hooks/use-weekly-availability";
@@ -39,6 +40,8 @@ export default function AvailabilityPage() {
   const [saving, setSaving] = useState(false);
   const [overrideSaving, setOverrideSaving] = useState(false);
   const [overrideDeletingId, setOverrideDeletingId] = useState<string | null>(null);
+  const [idToDelete, setIdToDelete] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draft, setDraft] = useState<WeeklyAvailabilityRow[]>([]);
   const [overrideDraft, setOverrideDraft] = useState({
     date: "",
@@ -119,8 +122,11 @@ export default function AvailabilityPage() {
     }
   }
 
-  async function removeOverride(id: string) {
-    if (!user?.id) return;
+  async function performDelete() {
+    if (!user?.id || !idToDelete) return;
+    const id = idToDelete;
+    setIdToDelete(null);
+    setShowDeleteConfirm(false);
     setOverrideDeletingId(id);
     try {
       const client = await getSupabaseBrowserClient();
@@ -135,6 +141,11 @@ export default function AvailabilityPage() {
     } finally {
       setOverrideDeletingId(null);
     }
+  }
+
+  function removeOverride(id: string) {
+    setIdToDelete(id);
+    setShowDeleteConfirm(true);
   }
 
   return (
@@ -495,6 +506,18 @@ export default function AvailabilityPage() {
           </>
         )}
       </AnimatePresence>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Remove Override?"
+        message="This will restore your default availability for this date. Guests will be able to book based on your standard weekly hours."
+        confirmLabel="Remove"
+        tone="danger"
+        onConfirm={performDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setIdToDelete(null);
+        }}
+      />
     </motion.div>
   );
 }

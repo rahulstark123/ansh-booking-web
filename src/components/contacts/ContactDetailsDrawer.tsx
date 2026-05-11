@@ -9,6 +9,7 @@ import {
   ClockIcon,
   UserCircleIcon,
   IdentificationIcon,
+  MapPinIcon,
 } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 
@@ -82,6 +83,11 @@ export function ContactDetailsDrawer({
                   icon={<IdentificationIcon className="h-4 w-4 text-blue-500" />} 
                   label="Role"
                   value={contact.jobTitle || "Not specified"} 
+                />
+                <InfoRow 
+                  icon={<MapPinIcon className="h-4 w-4 text-amber-500" />} 
+                  label="Location"
+                  value={`${contact.city}${contact.state ? `, ${contact.state}` : ""} ${contact.pincode} ${contact.country}`.trim() || "Not specified"} 
                 />
                 <InfoRow 
                   icon={<CalendarDaysIcon className="h-4 w-4 text-rose-500" />} 

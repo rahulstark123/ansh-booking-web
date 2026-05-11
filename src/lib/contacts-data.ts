@@ -12,6 +12,7 @@ export type Contact = {
   country: string;
   city: string;
   state: string;
+  pincode: string;
   owner: string;
   tag: ContactTag;
   lastMeeting: string;
@@ -33,6 +34,7 @@ export type ContactForm = {
   country: string;
   city: string;
   state: string;
+  pincode: string;
 };
 
 export const EMPTY_CONTACT_FORM: ContactForm = {
@@ -47,6 +49,7 @@ export const EMPTY_CONTACT_FORM: ContactForm = {
   country: "",
   city: "",
   state: "",
+  pincode: "",
 };
 
 export const INITIAL_CONTACTS: Contact[] = [
@@ -62,6 +65,7 @@ export const INITIAL_CONTACTS: Contact[] = [
     country: "India",
     city: "Delhi",
     state: "Delhi",
+    pincode: "110001",
     owner: "Ansh",
     tag: "VIP",
     lastMeeting: "Apr 08, 2026",
@@ -80,6 +84,7 @@ export const INITIAL_CONTACTS: Contact[] = [
     country: "India",
     city: "Mumbai",
     state: "Maharashtra",
+    pincode: "400001",
     owner: "Ansh",
     tag: "Warm",
     lastMeeting: "Apr 05, 2026",
@@ -98,6 +103,7 @@ export const INITIAL_CONTACTS: Contact[] = [
     country: "India",
     city: "Ahmedabad",
     state: "Gujarat",
+    pincode: "380001",
     owner: "Ops Team",
     tag: "Trial",
     lastMeeting: "Apr 02, 2026",
@@ -116,6 +122,7 @@ export const INITIAL_CONTACTS: Contact[] = [
     country: "India",
     city: "Bengaluru",
     state: "Karnataka",
+    pincode: "560001",
     owner: "Ansh",
     tag: "No meetings",
     lastMeeting: "-",

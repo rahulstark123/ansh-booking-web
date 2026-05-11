@@ -14,6 +14,10 @@ type ApiContact = {
   email: string;
   countryCode: string | null;
   phone: string | null;
+  pincode: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
   lastBookedAt: string | null;
   notes: string | null;
 };
@@ -37,9 +41,10 @@ function toUiContact(row: ApiContact): Contact {
     company: "",
     linkedin: "",
     timezone: "",
-    country: "",
-    city: "",
-    state: "",
+    country: row.country ?? "",
+    city: row.city ?? "",
+    state: row.state ?? "",
+    pincode: row.pincode ?? "",
     owner: "Ansh",
     tag: hasMeeting ? "Warm" : "No meetings",
     lastMeeting: formatLastMeeting(row.lastBookedAt),
@@ -83,7 +88,17 @@ export async function fetchContacts(
 
 export async function saveContact(
   accessToken: string,
-  payload: { fullName: string; email: string; countryCode?: string; phone?: string; notes?: string },
+  payload: { 
+    fullName: string; 
+    email: string; 
+    countryCode?: string; 
+    phone?: string; 
+    notes?: string;
+    pincode?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  },
 ): Promise<void> {
   const res = await fetch("/api/booking/contacts", {
     method: "POST",
@@ -94,4 +109,38 @@ export async function saveContact(
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Failed to save contact");
+}
+
+export async function deleteContact(accessToken: string, id: string): Promise<void> {
+  const res = await fetch(`/api/booking/contacts/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error("Failed to delete contact");
+}
+
+export async function updateContact(
+  accessToken: string,
+  id: string,
+  payload: Partial<{ 
+    fullName: string; 
+    email: string; 
+    countryCode: string; 
+    phone: string; 
+    notes: string;
+    pincode: string;
+    city: string;
+    state: string;
+    country: string;
+  }>,
+): Promise<void> {
+  const res = await fetch(`/api/booking/contacts/${id}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to update contact");
 }

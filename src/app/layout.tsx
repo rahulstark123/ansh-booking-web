@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Montserrat, Outfit, Roboto } from "next/font/google";
 
 import { AppProviders } from "@/providers/app-providers";
+import { ResponsiveGuard } from "@/components/ui/ResponsiveGuard";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -116,7 +117,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${outfit.variable} ${roboto.variable} ${montserrat.variable} h-full antialiased`}
     >
       <body className="min-h-screen w-full bg-[var(--background)] antialiased">
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          <ResponsiveGuard>
+            {children}
+          </ResponsiveGuard>
+        </AppProviders>
       </body>
     </html>
   );

@@ -1,15 +1,16 @@
 "use client";
 
-import { CheckCircleIcon, LinkIcon, ArrowTopRightOnSquareIcon, CpuChipIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, LinkIcon, ArrowTopRightOnSquareIcon, CpuChipIcon, XMarkIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { siCashapp, siGmail, siGooglemeet, siZoom } from "simple-icons/icons";
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { queryKeys } from "@/lib/query-keys";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type IntegrationKey = "gmail" | "google-meet" | "zoom" | "cashfree" | "razorpay";
 
@@ -84,8 +85,12 @@ async function authorizedGetJson(url: string): Promise<Record<string, unknown>> 
 export default function IntegrationsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const userId = useAuthStore((s) => s.user?.id) ?? "";
   const [gmailMockOn, setGmailMockOn] = useState(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [requestForm, setRequestForm] = useState({ name: "", description: "" });
 
   const googleQ = useQuery({
     queryKey: queryKeys.integrations.googleStatus(userId),
@@ -270,6 +275,47 @@ export default function IntegrationsPage() {
     router.push("/dashboard/integrations/razorpay");
   }
 
+  async function handleRequestSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!requestForm.name.trim() || !requestForm.description.trim()) {
+      showToast({ kind: "error", title: "Error", message: "Please fill all fields" });
+      return;
+    }
+
+    setSubmittingRequest(true);
+    try {
+      const client = await getSupabaseBrowserClient();
+      if (!client) return;
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch("/api/support", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          subject: `[Integration Request] ${requestForm.name}`,
+          message: requestForm.description,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast({ kind: "success", title: "Sent", message: "Your request has been received!" });
+        setIsRequestModalOpen(false);
+        setRequestForm({ name: "", description: "" });
+      } else {
+        showToast({ kind: "error", title: "Error", message: data.error || "Failed to send request" });
+      }
+    } catch (err) {
+      showToast({ kind: "error", title: "Error", message: "Something went wrong" });
+    } finally {
+      setSubmittingRequest(false);
+    }
+  }
+
   const connectedCount = useMemo(() => Object.values(connected).filter(Boolean).length, [connected]);
 
   return (
@@ -420,11 +466,101 @@ export default function IntegrationsPage() {
           <p className="mt-2 text-zinc-400 font-medium">
             We are constantly expanding our ecosystem. If you need a custom webhook or a specific CRM sync, please let us know.
           </p>
-          <button className="mt-6 rounded-xl bg-white/10 px-6 py-2.5 text-sm font-bold transition-all hover:bg-white/20 active:scale-95">
+          <button 
+            onClick={() => setIsRequestModalOpen(true)}
+            className="mt-6 rounded-xl bg-white/10 px-6 py-2.5 text-sm font-bold transition-all hover:bg-white/20 active:scale-95"
+          >
             Request Integration
           </button>
         </div>
       </div>
+
+      {/* Request Modal */}
+      <AnimatePresence>
+        {isRequestModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsRequestModalOpen(false)}
+              className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg overflow-hidden rounded-[32px] bg-white shadow-2xl"
+            >
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--app-primary-soft)] text-[var(--app-primary)]">
+                      <CpuChipIcon className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-zinc-900">Request Integration</h3>
+                      <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Let us know what you need</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsRequestModalOpen(false)}
+                    className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-100 transition-colors"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleRequestSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700">Integration Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Slack, Salesforce, Notion..."
+                      value={requestForm.name}
+                      onChange={(e) => setRequestForm({ ...requestForm, name: e.target.value })}
+                      className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-sm font-medium transition-all focus:border-[var(--app-primary)] focus:bg-white focus:ring-4 focus:ring-[var(--app-primary-soft)] outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700">Description & Use Case</label>
+                    <textarea
+                      required
+                      rows={4}
+                      placeholder="How would you use this integration? What specific features do you need?"
+                      value={requestForm.description}
+                      onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
+                      className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-sm font-medium transition-all focus:border-[var(--app-primary)] focus:bg-white focus:ring-4 focus:ring-[var(--app-primary-soft)] outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={submittingRequest}
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-6 py-4 text-sm font-bold text-white shadow-xl shadow-zinc-200 transition-all hover:bg-zinc-800 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {submittingRequest ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                          Sending Request...
+                        </>
+                      ) : (
+                        <>
+                          <PaperAirplaneIcon className="h-4 w-4" />
+                          Submit Request
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

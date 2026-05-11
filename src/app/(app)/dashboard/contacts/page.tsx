@@ -9,8 +9,9 @@ import { AddContactDrawer } from "@/components/contacts/AddContactDrawer";
 import { ContactDetailsDrawer } from "@/components/contacts/ContactDetailsDrawer";
 import { ContactTable } from "@/components/contacts/ContactTable";
 import { useToast } from "@/components/ui/ToastProvider";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useContacts } from "@/hooks/use-contacts";
-import { saveContact } from "@/lib/contacts-api";
+import { deleteContact, saveContact, updateContact } from "@/lib/contacts-api";
 import {
   EMPTY_CONTACT_FORM,
   type Contact,
@@ -31,6 +32,9 @@ export default function ContactsPage() {
   const pageSize = 10;
   const [selectedId, setSelectedId] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [form, setForm] = useState<ContactForm>(EMPTY_CONTACT_FORM);
   const { data, isLoading, isError } = useContacts(user?.id, { page, pageSize, q: search, filter });
   const contacts = data?.items ?? [];
@@ -41,23 +45,60 @@ export default function ContactsPage() {
 
   function openAddContact() {
     setSelectedId("");
+    setEditingId(null);
+    setForm(EMPTY_CONTACT_FORM);
     setAddOpen(true);
   }
 
   function closeAddContact() {
     setAddOpen(false);
+    setEditingId(null);
     setForm(EMPTY_CONTACT_FORM);
+  }
+
+  function handleEditContact(contact: Contact) {
+    setEditingId(contact.id);
+    setForm({
+      name: contact.name,
+      email: contact.email,
+      phoneCountryCode: "+91",
+      phoneNumber: contact.phone?.split(" ").slice(1).join(" ") || contact.phone || "",
+      jobTitle: contact.jobTitle || "",
+      company: contact.company || "",
+      linkedin: contact.linkedin || "",
+      timezone: contact.timezone || "",
+      country: contact.country || "",
+      city: contact.city || "",
+      state: contact.state || "",
+      pincode: contact.pincode || "",
+    });
+    setAddOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    if (!user?.id || !deletingId) return;
+    try {
+      const client = await getSupabaseBrowserClient();
+      if (!client) throw new Error("Supabase is not configured");
+      const { data: sessionData, error } = await client.auth.getSession();
+      if (error || !sessionData.session?.access_token) throw new Error("Not signed in");
+
+      await deleteContact(sessionData.session.access_token, deletingId);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.contacts.root });
+      showToast({ kind: "success", title: "Contact deleted", message: "Contact was removed successfully." });
+    } catch {
+      showToast({ kind: "error", title: "Delete failed", message: "Could not delete contact." });
+    } finally {
+      setDeletingId(null);
+      setShowDeleteConfirm(false);
+    }
   }
 
   async function handleSaveContact() {
     const name = form.name.trim();
     const email = form.email.trim();
     if (!name || !email) {
-      showToast({
-        kind: "error",
-        title: "Missing required fields",
-        message: "Please fill in full name and email before saving.",
-      });
+      showToast({ kind: "error", title: "Missing fields", message: "Full name and email are required." });
       return;
     }
     try {
@@ -66,22 +107,33 @@ export default function ContactsPage() {
       const { data: sessionData, error } = await client.auth.getSession();
       if (error || !sessionData.session?.access_token) throw new Error("Not signed in");
 
-      await saveContact(sessionData.session.access_token, {
+      const payload = {
         fullName: name,
         email,
         countryCode: form.phoneCountryCode.trim() || undefined,
         phone: form.phoneNumber.trim() || undefined,
-        notes: "New contact added manually.",
-      });
+        pincode: form.pincode.trim() || undefined,
+        city: form.city.trim() || undefined,
+        state: form.state.trim() || undefined,
+        country: form.country.trim() || undefined,
+        notes: editingId ? undefined : "New contact added manually.",
+      };
 
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.contacts.root,
-      });
+      if (editingId) {
+        await updateContact(sessionData.session.access_token, editingId, payload);
+      } else {
+        await saveContact(sessionData.session.access_token, payload);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: queryKeys.contacts.root });
       closeAddContact();
-      setPage(1);
-      showToast({ kind: "success", title: "Contact added", message: `${name} was added successfully.` });
+      showToast({ 
+        kind: "success", 
+        title: editingId ? "Contact updated" : "Contact added", 
+        message: `${name} was ${editingId ? "updated" : "added"} successfully.` 
+      });
     } catch {
-      showToast({ kind: "error", title: "Save failed", message: "Could not save contact. Try again." });
+      showToast({ kind: "error", title: "Save failed", message: "Could not save contact." });
     }
   }
 
@@ -91,7 +143,6 @@ export default function ContactsPage() {
       animate={{ opacity: 1, y: 0 }}
       className="mx-auto max-w-6xl space-y-8 py-4"
     >
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">Contacts</h1>
@@ -146,6 +197,11 @@ export default function ContactsPage() {
               total={total}
               onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
               onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onEdit={handleEditContact}
+              onDelete={(id) => {
+                setDeletingId(id);
+                setShowDeleteConfirm(true);
+              }}
               isLoading={isLoading}
               isError={isError}
             />

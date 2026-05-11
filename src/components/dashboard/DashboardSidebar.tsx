@@ -12,6 +12,7 @@ import {
   Cog6ToothIcon,
   CreditCardIcon,
   IdentificationIcon,
+  LifebuoyIcon,
   LinkIcon,
   PaintBrushIcon,
   PlusIcon,
@@ -34,6 +35,7 @@ const NAV_MAIN = [
 
 const SETTINGS_HREF = "/dashboard/settings" as const;
 const BILLING_HREF = "/dashboard/billing" as const;
+const SUPPORT_HREF = "/dashboard/support" as const;
 
 function navActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
@@ -50,6 +52,7 @@ export function DashboardSidebar() {
   const setSidebarCollapsed = useDashboardUiStore((s) => s.setSidebarCollapsed);
   const billingActive = navActive(pathname, BILLING_HREF);
   const settingsActive = navActive(pathname, SETTINGS_HREF);
+  const supportActive = navActive(pathname, SUPPORT_HREF);
 
   useEffect(() => {
     const handleResize = () => {
@@ -96,22 +99,7 @@ export function DashboardSidebar() {
           </Link>
         </div>
 
-        {/* New Booking Action */}
-        <div className="px-4 py-4">
-          <button
-            ref={newBookingButtonRef}
-            type="button"
-            onClick={openNewBookingModal}
-            className={[
-              "group relative flex items-center justify-center overflow-hidden rounded-xl bg-[var(--app-primary)] text-sm font-bold text-[var(--app-primary-foreground)] shadow-lg shadow-[var(--app-ring)] transition-all hover:bg-[var(--app-primary-hover)] active:scale-95 dark:shadow-none",
-              collapsed ? "h-12 w-12" : "h-12 w-full gap-3",
-            ].join(" ")}
-          >
-            <PlusIcon className="h-5 w-5" />
-            {!collapsed && <span>New Booking</span>}
-          </button>
-          <NewBookingEventTypeDialog anchorRef={newBookingButtonRef} collapsed={collapsed} />
-        </div>
+
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-none">
@@ -197,6 +185,26 @@ export function DashboardSidebar() {
             )}
             <Cog6ToothIcon className={["relative z-10 h-5 w-5", settingsActive ? "text-[var(--app-primary)]" : "text-zinc-400"].join(" ")} />
             {!collapsed && <span className="relative z-10">Settings</span>}
+          </Link>
+
+          <Link
+            href={SUPPORT_HREF}
+            className={[
+              "group relative flex h-12 items-center rounded-xl text-sm font-semibold transition-all",
+              collapsed ? "justify-center" : "gap-3 px-3",
+              supportActive
+                ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900",
+            ].join(" ")}
+          >
+            {supportActive && (
+              <motion.div
+                layoutId="sidebar-active-footer"
+                className="absolute inset-0 rounded-xl border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] shadow-sm"
+              />
+            )}
+            <LifebuoyIcon className={["relative z-10 h-5 w-5", supportActive ? "text-[var(--app-primary)]" : "text-zinc-400"].join(" ")} />
+            {!collapsed && <span className="relative z-10">Support</span>}
           </Link>
 
           <button

@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { CameraIcon, XMarkIcon, UserPlusIcon, MapPinIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
-import type { ReactNode } from "react";
+import { CameraIcon, XMarkIcon, UserPlusIcon, MapPinIcon, BriefcaseIcon, PlusIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import { type ReactNode, useEffect, useState } from "react";
 import PhoneInput from "react-phone-input-2";
 
 import { DrawerBackdrop } from "@/components/ui/drawer-backdrop";
@@ -19,7 +19,35 @@ export function AddContactDrawer({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const [lookupLoading, setLookupLoading] = useState(false);
   const canSave = form.name.trim() && form.email.trim();
+
+  useEffect(() => {
+    if (form.pincode.length === 6 && /^\d+$/.test(form.pincode)) {
+      handlePincodeLookup(form.pincode);
+    }
+  }, [form.pincode]);
+
+  async function handlePincodeLookup(pincode: string) {
+    setLookupLoading(true);
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = await res.json();
+      if (data[0].Status === "Success") {
+        const postOffice = data[0].PostOffice[0];
+        onChange({
+          ...form,
+          city: postOffice.District,
+          state: postOffice.State,
+          country: postOffice.Country,
+        });
+      }
+    } catch (err) {
+      console.error("Pincode lookup failed", err);
+    } finally {
+      setLookupLoading(false);
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -143,12 +171,21 @@ export function AddContactDrawer({
               {/* Location Section */}
               <section className="space-y-6">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Geographic Info</p>
-                <Field label="Time zone">
-                  <Input 
-                    value={form.timezone} 
-                    onChange={(v) => onChange({ ...form, timezone: v })} 
-                    placeholder="UTC+05:30 (India)"
-                  />
+                
+                <Field label="Pincode">
+                  <div className="relative">
+                    <Input 
+                      value={form.pincode} 
+                      onChange={(v) => onChange({ ...form, pincode: v })} 
+                      placeholder="400001"
+                      maxLength={6}
+                    />
+                    {lookupLoading && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <ArrowPathIcon className="h-5 w-5 animate-spin text-[var(--app-primary)]" />
+                      </div>
+                    )}
+                  </div>
                 </Field>
 
                 <div className="grid grid-cols-3 gap-3">
@@ -157,7 +194,7 @@ export function AddContactDrawer({
                       <Input 
                         value={form.city} 
                         onChange={(v) => onChange({ ...form, city: v })} 
-                        placeholder="NYC"
+                        placeholder="Mumbai"
                       />
                     </Field>
                   </div>
@@ -166,7 +203,7 @@ export function AddContactDrawer({
                       <Input 
                         value={form.state} 
                         onChange={(v) => onChange({ ...form, state: v })} 
-                        placeholder="NY"
+                        placeholder="MH"
                       />
                     </Field>
                   </div>
@@ -175,11 +212,19 @@ export function AddContactDrawer({
                       <Input 
                         value={form.country} 
                         onChange={(v) => onChange({ ...form, country: v })} 
-                        placeholder="USA"
+                        placeholder="India"
                       />
                     </Field>
                   </div>
                 </div>
+
+                <Field label="Time zone">
+                  <Input 
+                    value={form.timezone} 
+                    onChange={(v) => onChange({ ...form, timezone: v })} 
+                    placeholder="UTC+05:30 (India)"
+                  />
+                </Field>
               </section>
             </div>
 
@@ -233,11 +278,13 @@ function Input({
   onChange,
   type = "text",
   placeholder,
+  maxLength,
 }: {
   value: string;
   onChange: (value: string) => void;
   type?: string;
   placeholder?: string;
+  maxLength?: number;
 }) {
   return (
     <input
@@ -245,15 +292,8 @@ function Input({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      maxLength={maxLength}
       className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 text-sm font-bold text-zinc-900 outline-none transition-all focus:border-[var(--app-primary)] focus:ring-4 focus:ring-[var(--app-primary-soft)]"
     />
-  );
-}
-
-function PlusIcon({ className }: { className?: string }) {
-  return (
-    <svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-    </svg>
   );
 }

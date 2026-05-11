@@ -59,14 +59,6 @@ export function DashboardTopBar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        <Link
-          href="/dashboard/support"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-[var(--app-row-hover)] hover:text-[var(--app-primary)]"
-          aria-label="Support Center"
-          title="Support Center"
-        >
-          <LifebuoyIcon className="h-[17px] w-[17px]" aria-hidden />
-        </Link>
         <button
           type="button"
           className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-[var(--app-row-hover)] hover:text-zinc-800"
