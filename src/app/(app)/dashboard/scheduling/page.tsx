@@ -104,7 +104,8 @@ export default function SchedulingPage() {
   const total = meetingsResponse?.total ?? 0;
   const selected = useDashboardUiStore((s) => s.lastEventTypeChoice);
   const setSelected = useDashboardUiStore((s) => s.setLastEventTypeChoice);
-  const selectedType = SCHEDULING_EVENT_TYPES.find((x) => x.id === selected) ?? SCHEDULING_EVENT_TYPES[0];
+  const [activeKind, setActiveKind] = useState<SchedulingEventTypeId | null>(null);
+  const selectedType = SCHEDULING_EVENT_TYPES.find((x) => x.id === (activeKind ?? selected)) ?? SCHEDULING_EVENT_TYPES[0];
   const [createOpen, setCreateOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupMode, setSetupMode] = useState<"create" | "edit">("create");
@@ -143,6 +144,12 @@ export default function SchedulingPage() {
   const [pendingDeleteMeeting, setPendingDeleteMeeting] = useState<ScheduledMeeting | null>(null);
 
   useEffect(() => {
+    if (!setupOpen) {
+      setActiveKind(null);
+    }
+  }, [setupOpen]);
+
+  useEffect(() => {
     // Only trigger chooseType (which is for NEW events) if we aren't already 
     // in the process of editing an existing event.
     if (selected && !setupOpen && !loadingEditEvent) {
@@ -154,7 +161,8 @@ export default function SchedulingPage() {
   function chooseType(id: SchedulingEventTypeId) {
     setSetupMode("create");
     setEditingEventId(null);
-    setSelected(id);
+    setActiveKind(id);
+    setSelected(null);
     const type = SCHEDULING_EVENT_TYPES.find((x) => x.id === id);
     setForm((prev) => ({
       ...prev,
@@ -309,9 +317,13 @@ export default function SchedulingPage() {
       setLoadingEditEvent(false);
     }
     if (!detail) return;
+    
+    // Clear global selection to prevent it from triggering the "Create" flow later
+    setSelected(null);
+
     setSetupMode("edit");
     setEditingEventId(detail.id);
-    setSelected(detail.kind);
+    setActiveKind(detail.kind);
     setForm({
       eventName: detail.eventName,
       duration: String(detail.durationMinutes),
