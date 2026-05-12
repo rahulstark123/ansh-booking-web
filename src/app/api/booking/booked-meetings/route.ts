@@ -27,8 +27,8 @@ function bearerToken(req: NextRequest): string | null {
   return t || null;
 }
 
-function statusToUi(s: ScheduledMeetingStatus): MeetingStatus {
-  if (s === "UPCOMING") return "Upcoming";
+function statusToUi(s: ScheduledMeetingStatus, startsAt: Date, now: Date): MeetingStatus {
+  if (s === "UPCOMING" && startsAt > now) return "Upcoming";
   return "Completed";
 }
 
@@ -103,13 +103,22 @@ export async function GET(request: NextRequest) {
       workspaceIdFromMeta(authUser.user_metadata) ??
       (await nextWorkspaceId(prisma));
 
+    const now = new Date();
     const where = {
       hostId: authUser.id,
       wid,
       ...(filter === "upcoming"
-        ? { status: "UPCOMING" as const }
+        ? { 
+            status: "UPCOMING" as const,
+            startsAt: { gt: now }
+          }
         : filter === "completed"
-          ? { status: "COMPLETED" as const }
+          ? {
+              OR: [
+                { status: "COMPLETED" as const },
+                { startsAt: { lte: now } }
+              ]
+            }
           : {}),
     };
 
@@ -121,15 +130,13 @@ export async function GET(request: NextRequest) {
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
-
-    const now = new Date();
     const items: ScheduledMeeting[] = rows.map((b) => ({
       id: b.id,
       title: b.eventType.eventName,
       eventType: eventKindLabel(b.eventType.kind),
       guest: `${b.guestName} <${b.guestEmail}>`,
       time: formatMeetingListTime(b.startsAt, now),
-      status: statusToUi(b.status),
+      status: statusToUi(b.status, b.startsAt, now),
       meetingLink: b.meetingLink,
       location: b.eventType.location,
       platform: bookingLocationLabel(b.eventType.location),

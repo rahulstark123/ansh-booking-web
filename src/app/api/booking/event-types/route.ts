@@ -5,6 +5,7 @@ import { bookingKindToSchedulingTypeId, schedulingTypeIdToBookingKind } from "@/
 import { normalizeBookingPageTheme } from "@/lib/booking-page-templates";
 import type { BookingEventTypeDetail, CreateBookingEventTypeInput } from "@/lib/booking-event-types-api";
 import { getPrisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -252,6 +253,15 @@ export async function POST(req: NextRequest) {
       },
       select: { id: true },
     });
+
+    await createNotification({
+      userId: authUser.id,
+      title: "New Booking Slot Created",
+      message: `You created a new booking slot: ${payload.eventName}`,
+      type: "slot",
+      link: "/dashboard/meetings",
+    });
+
     return NextResponse.json(created, { status: 201 });
   } catch (e) {
     console.error("[api/booking/event-types]", e);
@@ -463,6 +473,15 @@ export async function PATCH(req: NextRequest) {
         },
       }),
     ]);
+
+    await createNotification({
+      userId: authUser.id,
+      title: "Booking Slot Updated",
+      message: `The booking slot "${payload.eventName}" has been updated.`,
+      type: "slot",
+      link: "/dashboard/meetings",
+    });
+
     return NextResponse.json({ ok: true as const });
   } catch (e) {
     console.error("[api/booking/event-types][PATCH]", e);

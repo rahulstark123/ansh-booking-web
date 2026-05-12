@@ -8,6 +8,7 @@ import { assertBookingRazorpayOrderValid } from "@/lib/billing/verify-booking-ra
 import { getHostRazorpayCredentials, getRazorpayFromHostCredentials } from "@/lib/host-razorpay";
 import { generateMeetingLinkForHost } from "@/lib/google-meet";
 import { getPrisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -519,6 +520,14 @@ export async function POST(
         // Booking remains successful even if email delivery temporarily fails.
         console.error("[booking-confirmation-email]", mailError);
       }
+
+      await createNotification({
+        userId: host.id,
+        title: "New Booking Received",
+        message: `${guestNameNorm} booked ${eventType.eventName} for ${startsAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+        type: "booking",
+        link: `/dashboard/meetings?id=${booking.id}`,
+      });
 
       return NextResponse.json(
         {

@@ -14,6 +14,8 @@ import { useState } from "react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
+import { GlobalSearch } from "./GlobalSearch";
+import { NotificationCenter } from "./NotificationCenter";
 
 export function DashboardTopBar() {
   const router = useRouter();
@@ -42,31 +44,8 @@ export function DashboardTopBar() {
   return (
     <>
       <header className="sticky top-0 z-30 flex shrink-0 items-center gap-4 border-b border-zinc-200/80 bg-[color:var(--background)]/95 px-5 py-3 backdrop-blur">
-      <div className="relative mx-auto flex w-full max-w-2xl flex-1">
-        <MagnifyingGlassIcon
-          className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400"
-          aria-hidden
-        />
-        <label htmlFor="dash-search" className="sr-only">
-          Search appointments and clients
-        </label>
-        <input
-          id="dash-search"
-          type="search"
-          placeholder="Search appointments, clients…"
-          className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2 pr-3 pl-10 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-[var(--app-focus-border)] focus:bg-white focus:ring-2 focus:ring-[var(--app-ring)]"
-        />
-      </div>
-
-      <div className="flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-[var(--app-row-hover)] hover:text-zinc-800"
-          aria-label="Notifications"
-        >
-          <BellIcon className="h-[17px] w-[17px]" aria-hidden />
-        </button>
-      </div>
+      <GlobalSearch />
+      <NotificationCenter />
 
       {user && (
         <div className="flex shrink-0 items-center gap-3 border-l border-zinc-200 pl-4">

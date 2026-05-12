@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { getPrisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -80,6 +81,15 @@ export async function POST(req: NextRequest) {
         attachments: attachments || [],
       },
     });
+
+    await createNotification({
+      userId: authUser.id,
+      title: "Support Ticket Created",
+      message: `We've received your ticket: "${subject.trim()}". Our team will review it shortly.`,
+      type: "system",
+      link: "/dashboard/support",
+    });
+
     return NextResponse.json({ success: true, ticket });
   } catch (error) {
     console.error("[api/support POST]", error);

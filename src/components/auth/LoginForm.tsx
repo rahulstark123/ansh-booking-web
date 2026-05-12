@@ -17,7 +17,7 @@ export function LoginForm() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { showToast } = useToast();
-  const [email, setEmail] = useState("alex@example.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauthBusy, setOauthBusy] = useState(false);

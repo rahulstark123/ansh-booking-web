@@ -16,18 +16,18 @@ import {
   EMPTY_CONTACT_FORM,
   type Contact,
   type ContactForm,
-  type FilterId,
 } from "@/lib/contacts-data";
 import { queryKeys } from "@/lib/query-keys";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 export default function ContactsPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const user = useAuthStore((s) => s.user);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FilterId>("all");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [selectedId, setSelectedId] = useState("");
@@ -36,10 +36,16 @@ export default function ContactsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [form, setForm] = useState<ContactForm>(EMPTY_CONTACT_FORM);
-  const { data, isLoading, isError } = useContacts(user?.id, { page, pageSize, q: search, filter });
+  const { data, isLoading, isError } = useContacts(user?.id, { page, pageSize, q: search, filter: "all" });
   const contacts = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
   const total = data?.total ?? 0;
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (id) setSelectedId(id);
+  }, [searchParams]);
 
   const selected = useMemo(() => contacts.find((c) => c.id === selectedId) ?? null, [contacts, selectedId]);
 
@@ -185,11 +191,6 @@ export default function ContactsPage() {
           <div className="rounded-3xl border border-zinc-200 bg-white p-2 shadow-sm">
             <ContactTable
               contacts={contacts}
-              filter={filter}
-              onFilterChange={(next) => {
-                setFilter(next);
-                setPage(1);
-              }}
               selectedId={selected?.id ?? ""}
               onSelect={setSelectedId}
               page={page}

@@ -4,12 +4,10 @@ import { FunnelIcon, ChevronLeftIcon, ChevronRightIcon, UserIcon, BuildingOffice
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
-import type { Contact, FilterId } from "@/lib/contacts-data";
+import type { Contact } from "@/lib/contacts-data";
 
 export function ContactTable({
   contacts,
-  filter,
-  onFilterChange,
   selectedId,
   onSelect,
   page,
@@ -23,8 +21,6 @@ export function ContactTable({
   isError
 }: {
   contacts: Contact[];
-  filter: FilterId;
-  onFilterChange: (value: FilterId) => void;
   selectedId: string;
   onSelect: (id: string) => void;
   page: number;
@@ -39,30 +35,7 @@ export function ContactTable({
 }) {
   return (
     <>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 p-4">
-        <div className="relative flex items-center bg-zinc-100/80 p-1 rounded-xl ring-1 ring-zinc-200 self-start sm:self-auto">
-          {(["all", "VIP", "Warm", "Trial", "No meetings"] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => onFilterChange(f)}
-              className={[
-                "relative px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors z-10",
-                filter === f ? "text-[var(--app-primary)]" : "text-zinc-500 hover:text-zinc-700"
-              ].join(" ")}
-            >
-              {f}
-              {filter === f && (
-                <motion.div
-                  layoutId="contactFilter"
-                  className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
-                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+
 
       <div className="min-w-full">
         <div className="grid grid-cols-[1.5fr_1.2fr_1fr_1fr_40px] gap-4 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-50">
@@ -120,7 +93,7 @@ export function ContactTable({
                   ].join(" ")}>
                     {c.name.charAt(0)}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 text-left">
                     <span className="block truncate font-extrabold text-zinc-900 leading-tight">{c.name}</span>
                     <span className="block truncate text-[10px] font-bold text-zinc-400 mt-0.5">{c.email}</span>
                     {c.phone && <span className="block truncate text-[10px] font-medium text-[var(--app-primary)] mt-0.5">{c.phone}</span>}
