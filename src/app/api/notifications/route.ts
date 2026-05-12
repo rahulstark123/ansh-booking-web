@@ -21,15 +21,18 @@ export async function GET(req: Request) {
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
+      console.error("GET Notifications Auth Error:", error);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    console.log(`[API] Fetching notifications for user: ${user.id}`);
     const notifications = await prisma.notification.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
 
+    console.log(`[API] Found ${notifications.length} notifications`);
     return NextResponse.json(notifications);
   } catch (error) {
     console.error("GET Notifications Error:", error);

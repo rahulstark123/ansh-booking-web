@@ -15,11 +15,22 @@ export async function createNotification({
   type?: NotificationType;
   link?: string;
 }) {
+  console.log(`[Notification] Creating: ${title} for user: ${userId}`);
   const prisma = getPrisma();
-  if (!prisma) return null;
+  
+  if (!prisma) {
+    console.error("[Notification] Prisma client not available");
+    return null;
+  }
+
+  // Double check if the model exists on the client (might be stale cache)
+  if (!("notification" in prisma)) {
+    console.error("[Notification] 'notification' model not found on Prisma client. You might need to restart your dev server.");
+    return null;
+  }
 
   try {
-    return await prisma.notification.create({
+    const result = await (prisma as any).notification.create({
       data: {
         userId,
         title,
@@ -28,7 +39,9 @@ export async function createNotification({
         link,
       },
     });
+    console.log(`[Notification] Created successfully: ${result.id}`);
+    return result;
   } catch (error) {
-    console.error("Failed to create notification:", error);
+    console.error("[Notification] Failed to create notification:", error);
   }
 }
