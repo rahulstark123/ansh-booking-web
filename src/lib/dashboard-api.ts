@@ -52,49 +52,23 @@ export async function fetchDashboardOverview(): Promise<DashboardOverview> {
 }
 
 export async function fetchAgenda(): Promise<AgendaItem[]> {
-  await delay(220);
-  return [
-    {
-      id: "1",
-      time: "09:00 AM",
-      date: "May 10",
-      title: "Executive Consulting Session",
-      client: "Priya Mehta",
-      duration: "60 min",
+  const supabase = await getSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase client not available");
+  
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const res = await fetch("/api/dashboard/agenda", {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
     },
-    {
-      id: "2",
-      time: "11:30 AM",
-      date: "May 10",
-      title: "Design review",
-      client: "Rahul Verma",
-      duration: "45 min",
-    },
-    {
-      id: "3",
-      time: "02:00 PM",
-      date: "May 11",
-      title: "Follow-up call",
-      client: "Neha Kapoor",
-      duration: "30 min",
-    },
-    {
-      id: "4",
-      time: "10:00 AM",
-      date: "May 12",
-      title: "Product Strategy",
-      client: "Amit Shah",
-      duration: "60 min",
-    },
-    {
-      id: "5",
-      time: "03:30 PM",
-      date: "May 12",
-      title: "Technical Interview",
-      client: "Suresh Raina",
-      duration: "45 min",
-    },
-  ];
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load dashboard agenda");
+  }
+
+  return res.json();
 }
 
 export async function fetchActivity(): Promise<ActivityItem[]> {
