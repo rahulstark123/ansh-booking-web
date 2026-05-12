@@ -308,10 +308,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const prisma = getPrisma();
+    if (!prisma) return NextResponse.json({ error: "Database not available" }, { status: 503 });
+
     const wid =
       (await prisma.userProfile.findUnique({ where: { id: authUser.id }, select: { wid: true } }))?.wid ??
       workspaceIdFromMeta(authUser.user_metadata) ??
       (await nextWorkspaceId(prisma));
+
+    console.log(`[EventTypes] GET id=${id} for host=${authUser.id} wid=${wid}`);
+
     const eventType = await prisma.bookingEventType.findFirst({
       where: { id, hostId: authUser.id, wid, isActive: true },
       select: {
@@ -339,6 +345,7 @@ export async function GET(req: NextRequest) {
       },
     });
     if (!eventType) {
+      console.warn(`[EventTypes] Event not found: id=${id} host=${authUser.id} wid=${wid}`);
       return NextResponse.json({ error: "Event not found." }, { status: 404 });
     }
     const payload: BookingEventTypeDetail = {
@@ -433,14 +440,18 @@ export async function PATCH(req: NextRequest) {
       workspaceIdFromMeta(authUser.user_metadata) ??
       (await nextWorkspaceId(prisma));
 
+    console.log(`[EventTypes] PATCH id=${payload.id} for host=${authUser.id} wid=${wid}`);
+
     const existing = await prisma.bookingEventType.findFirst({
       where: { id: payload.id, hostId: authUser.id, wid, isActive: true },
       select: { id: true },
     });
     if (!existing) {
+      console.warn(`[EventTypes] Update failed: Event not found: id=${payload.id} host=${authUser.id} wid=${wid}`);
       return NextResponse.json({ error: "Event not found." }, { status: 404 });
     }
 
+    console.log(`[EventTypes] Performing transaction update for id=${payload.id}`);
     await prisma.$transaction([
       prisma.bookingWeekSlot.deleteMany({ where: { eventTypeId: payload.id } }),
       prisma.bookingEventType.update({

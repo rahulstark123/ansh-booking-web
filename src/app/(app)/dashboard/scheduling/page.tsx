@@ -143,11 +143,13 @@ export default function SchedulingPage() {
   const [pendingDeleteMeeting, setPendingDeleteMeeting] = useState<ScheduledMeeting | null>(null);
 
   useEffect(() => {
-    if (selected) {
+    // Only trigger chooseType (which is for NEW events) if we aren't already 
+    // in the process of editing an existing event.
+    if (selected && !setupOpen && !loadingEditEvent) {
       chooseType(selected as SchedulingEventTypeId);
       setSelected(null);
     }
-  }, [selected, setSelected]);
+  }, [selected, setSelected, setupOpen, loadingEditEvent]);
 
   function chooseType(id: SchedulingEventTypeId) {
     setSetupMode("create");

@@ -271,6 +271,14 @@ export async function POST(req: NextRequest) {
       select: { id: true, meetingLink: true },
     });
 
+    await createNotification({
+      userId: authUser.id,
+      title: "Manual Meeting Scheduled",
+      message: `A meeting "${body.title}" with ${body.guestName} has been scheduled.`,
+      type: "booking",
+      link: "/dashboard/calendar",
+    });
+
     return NextResponse.json(created, { status: 201 });
   } catch (e) {
     console.error("[api/booking/meetings][POST]", e);
@@ -341,6 +349,15 @@ export async function PATCH(req: NextRequest) {
     if (updated.count === 0) {
       return NextResponse.json({ error: "Event not found." }, { status: 404 });
     }
+
+    await createNotification({
+      userId: authUser.id,
+      title: "Booking Slot Updated",
+      message: `The booking slot title has been updated to: ${title}`,
+      type: "slot",
+      link: "/dashboard/scheduling",
+    });
+
     return NextResponse.json({ ok: true as const });
   } catch (e) {
     console.error("[api/booking/meetings][PATCH]", e);
