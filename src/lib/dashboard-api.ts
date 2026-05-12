@@ -90,3 +90,29 @@ export async function fetchActivity(): Promise<ActivityItem[]> {
 
   return res.json();
 }
+
+export type AnalyticsData = {
+  revenueData: { name: string; value: number }[];
+  bookingDistribution: { name: string; value: number }[];
+  clientGrowth: { month: string; clients: number }[];
+};
+
+export async function fetchAdvancedAnalytics(): Promise<AnalyticsData> {
+  const supabase = await getSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase client not available");
+  
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const res = await fetch("/api/dashboard/analytics", {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load analytics");
+  }
+
+  return res.json();
+}

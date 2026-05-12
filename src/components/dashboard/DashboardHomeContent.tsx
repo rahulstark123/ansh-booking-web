@@ -88,13 +88,24 @@ export function DashboardHomeContent() {
           )}
         </div>
         
-        <Link 
-          href="/dashboard/scheduling" 
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold shadow-lg shadow-zinc-200 transition-all hover:bg-zinc-800 hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <CalendarIcon className="w-4 h-4" />
-          Set Availability
-        </Link>
+        <div className="flex items-center gap-3">
+          {user?.plan === "PRO" && (
+            <Link 
+              href="/dashboard/analytics" 
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-zinc-200 text-zinc-900 rounded-xl text-sm font-semibold shadow-sm transition-all hover:bg-zinc-50 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <RocketLaunchIcon className="w-4 h-4 text-[var(--app-primary)]" />
+              Advanced Analytics
+            </Link>
+          )}
+          <Link 
+            href="/dashboard/scheduling" 
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold shadow-lg shadow-zinc-200 transition-all hover:bg-zinc-800 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <CalendarIcon className="w-4 h-4" />
+            Set Availability
+          </Link>
+        </div>
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid gap-6 sm:grid-cols-3">

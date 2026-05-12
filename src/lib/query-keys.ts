@@ -8,6 +8,7 @@ export const queryKeys = {
     overview: () => [...queryKeys.dashboard.root, "overview"] as const,
     agenda: () => [...queryKeys.dashboard.root, "agenda"] as const,
     activity: () => [...queryKeys.dashboard.root, "activity"] as const,
+    analytics: () => [...queryKeys.dashboard.root, "analytics"] as const,
   },
   meetings: {
     root: ["meetings"] as const,
