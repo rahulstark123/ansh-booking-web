@@ -2,15 +2,15 @@
 
 import { motion } from "framer-motion";
 import { 
-  ArrowLeftIcon, 
-  ChartBarIcon, 
-  ArrowTrendingUpIcon, 
-  PresentationChartLineIcon,
-  PieChartIcon,
-  ArrowUpRightIcon,
-  CalendarDaysIcon,
-  UserPlusIcon,
-  ArrowPathIcon
+  ArrowLeft, 
+  BarChart3, 
+  TrendingUp, 
+  Presentation,
+  PieChart as PieChartIcon,
+  ArrowUpRight,
+  CalendarDays,
+  UserPlus,
+  RefreshCcw
 } from "lucide-react";
 import Link from "next/link";
 import { 
@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <ArrowPathIcon className="w-8 h-8 text-[var(--app-primary)] animate-spin" />
+        <RefreshCcw className="w-8 h-8 text-[var(--app-primary)] animate-spin" />
         <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">Generating your insights...</p>
       </div>
     );
@@ -49,7 +49,7 @@ export default function AnalyticsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <div className="p-4 bg-red-50 text-red-600 rounded-full">
-          <ChartBarIcon className="w-12 h-12" />
+          <BarChart3 className="w-12 h-12" />
         </div>
         <p className="text-zinc-900 font-bold">Failed to load analytics</p>
         <button 
@@ -71,7 +71,7 @@ export default function AnalyticsPage() {
             href="/dashboard" 
             className="inline-flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors mb-4"
           >
-            <ArrowLeftIcon className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </Link>
           <h1 className="text-4xl font-black tracking-tight text-zinc-900">Advanced Analytics</h1>
@@ -88,7 +88,7 @@ export default function AnalyticsPage() {
             onClick={() => refetch()}
             className="p-3 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-all active:scale-95"
           >
-            <ArrowPathIcon className="w-5 h-5 text-zinc-400" />
+            <RefreshCcw className="w-5 h-5 text-zinc-400" />
           </button>
         </div>
       </div>
@@ -99,28 +99,28 @@ export default function AnalyticsPage() {
           label="Conversion Rate" 
           value="18.4%" 
           delta="+2.4%" 
-          icon={<ArrowUpRightIcon className="w-5 h-5" />} 
+          icon={<ArrowUpRight className="w-5 h-5" />} 
           color="blue"
         />
         <AnalyticsKpiCard 
           label="Avg. Session Length" 
           value="42 min" 
           delta="-5 min" 
-          icon={<CalendarDaysIcon className="w-5 h-5" />} 
+          icon={<CalendarDays className="w-5 h-5" />} 
           color="emerald"
         />
         <AnalyticsKpiCard 
           label="Client Retention" 
           value="92%" 
           delta="+1.2%" 
-          icon={<UserPlusIcon className="w-5 h-5" />} 
+          icon={<UserPlus className="w-5 h-5" />} 
           color="indigo"
         />
         <AnalyticsKpiCard 
           label="Projected Revenue" 
           value="₹84,200" 
           delta="+15%" 
-          icon={<ArrowTrendingUpIcon className="w-5 h-5" />} 
+          icon={<TrendingUp className="w-5 h-5" />} 
           color="amber"
         />
       </div>
@@ -132,7 +132,7 @@ export default function AnalyticsPage() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-50 rounded-xl">
-                <PresentationChartLineIcon className="w-5 h-5 text-blue-600" />
+                <Presentation className="w-5 h-5 text-blue-600" />
               </div>
               <h2 className="text-xl font-black text-zinc-900">Revenue Growth</h2>
             </div>
@@ -186,7 +186,7 @@ export default function AnalyticsPage() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-emerald-50 rounded-xl">
-                <UserPlusIcon className="w-5 h-5 text-emerald-600" />
+                <UserPlus className="w-5 h-5 text-emerald-600" />
               </div>
               <h2 className="text-xl font-black text-zinc-900">Client Acquisition</h2>
             </div>
