@@ -21,6 +21,7 @@ type Integration = {
   description: string;
   iconPath: string;
   iconColor: string;
+  viewBox?: string;
 };
 
 const INTEGRATIONS: Integration[] = [
@@ -53,8 +54,9 @@ const INTEGRATIONS: Integration[] = [
     name: "Cashfree",
     category: "Payments",
     description: "Process subscription payments securely through your Cashfree gateway setup.",
-    iconPath: siCashapp.path,
-    iconColor: `#${siCashapp.hex}`,
+    iconPath: "M0 32C0 14.3269 14.3269 0 32 0H160C177.673 0 192 14.3269 192 32V64H160V32H32V160H160V128H192V160C192 177.673 177.673 192 160 192H32C14.3269 192 0 177.673 0 160V32ZM224 32C224 14.3269 238.327 0 256 0H384C401.673 0 416 14.3269 416 32V160C416 177.673 401.673 192 384 192H256C238.327 192 224 177.673 224 160V32ZM256 32V160H384V32H256Z",
+    iconColor: "#00224D",
+    viewBox: "0 0 416 192",
   },
   {
     key: "razorpay",
@@ -62,8 +64,9 @@ const INTEGRATIONS: Integration[] = [
     category: "Payments",
     description:
       "Connect your Razorpay account to charge meeting fees on public booking links.",
-    iconPath: siCashapp.path,
-    iconColor: "#0C2451",
+    iconPath: "m122.63 105.7-15.75 57.97 90.15-58.3-58.96 219.98 59.88.05 87.1-324.92",
+    iconColor: "#3395FF",
+    viewBox: "0 0 300 330",
   },
 ];
 
@@ -364,7 +367,7 @@ export default function IntegrationsPage() {
               <div className="mb-6 flex items-start justify-between">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-50 ring-1 ring-zinc-100 transition-all group-hover:scale-110 group-hover:shadow-md">
                   <svg
-                    viewBox="0 0 24 24"
+                    viewBox={item.viewBox || "0 0 24 24"}
                     className="h-8 w-8"
                     role="img"
                     aria-hidden
