@@ -93,7 +93,14 @@ export async function GET(
   try {
     const host = await prisma.userProfile.findUnique({
       where: { id: hostId },
-      select: { id: true, wid: true, fullName: true },
+      select: { 
+        id: true, 
+        wid: true, 
+        fullName: true, 
+        plan: true, 
+        platformBranding: true, 
+        workspaceLogo: true 
+      },
     });
     if (!host) {
       return NextResponse.json({ error: "Host not found." }, { status: 404 });
@@ -211,6 +218,9 @@ export async function GET(
       host: {
         id: host.id,
         name: host.fullName,
+        plan: host.plan,
+        platformBranding: host.platformBranding,
+        workspaceLogo: host.workspaceLogo,
       },
       event: {
         id: selected.id,
@@ -255,6 +265,7 @@ type CreatePublicBookingBody = {
   guestCountryCode?: string;
   guestPhone?: string;
   notes?: string;
+  guests?: string[];
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;
@@ -393,12 +404,16 @@ export async function POST(
 
     const endsAt = new Date(startsAt);
     endsAt.setMinutes(endsAt.getMinutes() + Math.max(15, eventType.durationMinutes));
+    
+    // Combine primary guest email with additional guests for the meeting invitation
+    const allAttendees = Array.from(new Set([guestEmailNorm, ...(body.guests ?? [])]));
+
     const meetingLink = await generateMeetingLinkForHost(host.id, host.wid, eventType.location, {
       summary: eventType.eventName,
-      description: `Booked by ${guestNameNorm} (${guestEmailNorm})`,
+      description: `Booked by ${guestNameNorm} (${guestEmailNorm})${body.guests?.length ? `\nGuests: ${body.guests.join(", ")}` : ""}${body.notes ? `\n\nNotes: ${body.notes}` : ""}`,
       startsAt,
       endsAt,
-      attendees: [guestEmailNorm],
+      attendees: allAttendees,
     });
 
     try {
@@ -464,7 +479,10 @@ export async function POST(
               meetingLink,
               guestCountryCode: guestCountryCodeNorm,
               guestPhone: guestPhoneNorm,
-              guestNotes: body.notes?.trim() || null,
+              guestNotes: [
+                body.guests?.length ? `Guests: ${body.guests.join(", ")}` : "",
+                body.notes?.trim() || ""
+              ].filter(Boolean).join("\n\n") || null,
               startsAt,
               endsAt,
               status: "UPCOMING",

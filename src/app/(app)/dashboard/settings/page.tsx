@@ -469,22 +469,36 @@ export default function SettingsPage() {
 
                     <div className="space-y-6">
                       <div className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
-                        <h3 className="text-base font-bold text-zinc-900">Platform Branding</h3>
-                        <p className="mt-2 text-sm font-medium text-zinc-500">Show ANSH product branding on scheduling pages and emails.</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-base font-bold text-zinc-900">Platform Branding</h3>
+                            <p className="mt-2 text-sm font-medium text-zinc-500">Show ANSH product branding on scheduling pages and emails.</p>
+                          </div>
+                          {useAuthStore.getState().user?.plan === "FREE" && (
+                            <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-600 ring-1 ring-amber-200">
+                              Pro Feature
+                            </span>
+                          )}
+                        </div>
                         
-                        <div className="mt-6 flex items-center justify-between p-4 rounded-2xl bg-zinc-50">
+                        <div className={[
+                          "mt-6 flex items-center justify-between p-4 rounded-2xl transition-all",
+                          useAuthStore.getState().user?.plan === "FREE" ? "bg-zinc-50 opacity-60 cursor-not-allowed" : "bg-zinc-50"
+                        ].join(" ")}>
                           <span className="text-sm font-bold text-zinc-700">Display "Powered by ANSH"</span>
                           <button
                             type="button"
+                            disabled={useAuthStore.getState().user?.plan === "FREE"}
                             onClick={() => setUsePlatformBranding(!usePlatformBranding)}
                             className={[
                               "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                              usePlatformBranding ? "bg-[var(--app-primary)]" : "bg-zinc-300",
+                              (usePlatformBranding || useAuthStore.getState().user?.plan === "FREE") ? "bg-[var(--app-primary)]" : "bg-zinc-300",
+                              useAuthStore.getState().user?.plan === "FREE" ? "cursor-not-allowed" : ""
                             ].join(" ")}
                           >
                             <span className={[
                               "h-5 w-5 transform rounded-full bg-white transition-transform",
-                              usePlatformBranding ? "translate-x-5" : "translate-x-1"
+                              (usePlatformBranding || useAuthStore.getState().user?.plan === "FREE") ? "translate-x-5" : "translate-x-1"
                             ].join(" ")} />
                           </button>
                         </div>

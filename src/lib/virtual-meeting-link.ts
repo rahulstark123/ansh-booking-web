@@ -24,13 +24,10 @@ function numberCode(length: number): string {
 
 export function buildVirtualMeetingLink(location: LocationKind): string | null {
   if (location === "google-meet") {
-    const code = `${alphaCode(3)}-${alphaCode(4)}-${alphaCode(3)}`;
-    return `https://meet.google.com/${code}`;
+    return `https://meet.google.com`;
   }
   if (location === "zoom") {
-    const room = numberCode(10);
-    const pwd = alphaCode(8);
-    return `https://zoom.us/j/${room}?pwd=${pwd}`;
+    return `https://zoom.us/join`;
   }
   return null;
 }

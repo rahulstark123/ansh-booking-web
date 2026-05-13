@@ -203,6 +203,12 @@ async function createZoomMeeting(accessToken: string, input: ZoomMeetingInput): 
       duration,
       timezone: "UTC",
       agenda: input.description,
+      settings: {
+        waiting_room: true,
+        join_before_host: false,
+        mute_upon_entry: true,
+        participant_video: true,
+      }
     }),
     cache: "no-store",
   });

@@ -109,7 +109,7 @@ async function refreshGoogleToken(refreshToken: string): Promise<GoogleTokenResp
 
 async function createGoogleMeetEventLink(accessToken: string, input: GoogleMeetInput): Promise<string | null> {
   const res = await fetch(
-    "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1",
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all",
     {
       method: "POST",
       headers: {
@@ -132,7 +132,11 @@ async function createGoogleMeetEventLink(accessToken: string, input: GoogleMeetI
       cache: "no-store",
     },
   );
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`[google-meet] Failed to create event: ${res.status}`, errText);
+    return null;
+  }
   const payload = (await res.json()) as GoogleCalendarEventResponse;
   const entry = payload.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video");
   return payload.hangoutLink ?? entry?.uri ?? null;
@@ -161,7 +165,10 @@ export async function generateMeetingLinkForHost(
       },
     },
   });
-  if (!conn) return buildVirtualMeetingLink(location);
+  if (!conn) {
+    console.warn(`[google-meet] No Google integration found for host ${hostId}. Falling back to virtual link.`);
+    return buildVirtualMeetingLink(location);
+  }
 
   let accessToken = conn.accessToken;
   const exp = conn.expiresAt?.getTime() ?? 0;

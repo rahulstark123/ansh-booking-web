@@ -25,7 +25,13 @@ type PublicEventPayment =
     };
 
 type PublicBookingPayload = {
-  host: { id: string; name: string };
+  host: { 
+    id: string; 
+    name: string; 
+    plan: "FREE" | "PRO";
+    platformBranding: boolean;
+    workspaceLogo: string | null;
+  };
   event: {
     id: string;
     title: string;
@@ -138,7 +144,8 @@ export default function PublicBookingPage() {
     guestEmail: "",
     guestCountryCode: "+91",
     guestPhone: "",
-    guests: "",
+    guests: [] as string[],
+    guestInput: "",
     notes: "",
   });
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -368,6 +375,7 @@ export default function PublicBookingPage() {
           guestEmail: form.guestEmail.trim(),
           guestCountryCode: form.guestCountryCode,
           guestPhone: form.guestPhone.trim(),
+          guests: form.guests,
           notes: form.notes.trim() || undefined,
           ...(razorpayExtra ?? {}),
         }),
@@ -421,6 +429,15 @@ export default function PublicBookingPage() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             >
+              {data.host.workspaceLogo && (
+                <div className="mb-6">
+                  <img 
+                    src={data.host.workspaceLogo} 
+                    alt="Workspace Logo" 
+                    className="h-12 w-auto object-contain rounded-lg shadow-sm"
+                  />
+                </div>
+              )}
               {step !== "select" && (
                 <button
                   type="button"
@@ -551,15 +568,55 @@ export default function PublicBookingPage() {
                       </div>
                     </label>
 
-                    <label className="block">
-                      <span className={`mb-2 block text-[10px] font-black uppercase tracking-[0.2em] ${shell.label}`}>Add guests (optional)</span>
-                      <input
-                        value={form.guests}
-                        onChange={(e) => setForm((prev) => ({ ...prev, guests: e.target.value }))}
-                        placeholder="comma separated emails"
-                        className={`w-full rounded-xl border px-4 py-3.5 text-sm font-bold outline-none transition-all focus:ring-4 ${shell.input}`}
-                      />
-                    </label>
+                    {data.event.kind === "GROUP" && (
+                      <div className="space-y-4">
+                        <label className="block">
+                          <span className={`mb-2 block text-[10px] font-black uppercase tracking-[0.2em] ${shell.label}`}>Add guests (optional)</span>
+                          <div className={`flex flex-wrap gap-2 rounded-xl border p-2 transition-all focus-within:ring-4 ${shell.input}`}>
+                            {form.guests.map((email, idx) => (
+                              <motion.span 
+                                key={idx}
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--app-primary-soft)] px-2.5 py-1 text-xs font-bold text-[var(--app-primary)] ring-1 ring-[var(--app-primary-soft-border)]"
+                              >
+                                {email}
+                                <button
+                                  type="button"
+                                  onClick={() => setForm(p => ({ ...p, guests: p.guests.filter((_, i) => i !== idx) }))}
+                                  className="text-[var(--app-primary)]/50 hover:text-rose-500 transition-colors"
+                                >
+                                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </motion.span>
+                            ))}
+                            <input
+                              value={form.guestInput}
+                              onChange={(e) => setForm((prev) => ({ ...prev, guestInput: e.target.value }))}
+                              onBlur={() => {
+                                const email = form.guestInput.trim().replace(/,$/, "");
+                                if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !form.guests.includes(email)) {
+                                  setForm(p => ({ ...p, guests: [...p.guests, email], guestInput: "" }));
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === ",") {
+                                  e.preventDefault();
+                                  const email = form.guestInput.trim().replace(/,$/, "");
+                                  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !form.guests.includes(email)) {
+                                    setForm(p => ({ ...p, guests: [...p.guests, email], guestInput: "" }));
+                                  }
+                                }
+                              }}
+                              placeholder={form.guests.length === 0 ? "Email address..." : "Add another..."}
+                              className="flex-1 min-w-[140px] bg-transparent text-sm font-bold outline-none placeholder:text-zinc-300"
+                            />
+                          </div>
+                        </label>
+                      </div>
+                    )}
 
                     <label className="block">
                       <span className={`mb-2 block text-[10px] font-black uppercase tracking-[0.2em] ${shell.label}`}>
@@ -658,6 +715,26 @@ export default function PublicBookingPage() {
           </AnimatePresence>
         </section>
       </motion.div>
+
+      {/* Branding Ribbon */}
+      {(data.host.plan === "FREE" || data.host.platformBranding) && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2"
+        >
+          <a 
+            href="https://anshbookings.com" 
+            target="_blank" 
+            rel="noreferrer"
+            className="group flex items-center gap-2 rounded-full border border-zinc-200 bg-white/80 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 shadow-sm backdrop-blur-sm transition-all hover:border-[var(--app-primary-soft-border)] hover:bg-white hover:text-[var(--app-primary)] hover:shadow-md"
+          >
+            <span>Powered by</span>
+            <span className="text-zinc-900 group-hover:text-[var(--app-primary)]">Ansh Bookings</span>
+          </a>
+        </motion.div>
+      )}
     </div>
   );
 }

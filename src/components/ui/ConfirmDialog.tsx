@@ -58,7 +58,12 @@ export function ConfirmDialog({
               tone === "danger" ? "bg-rose-600 hover:bg-rose-700" : "bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)]",
             ].join(" ")}
           >
-            {busy ? "Please wait..." : confirmLabel}
+            {busy ? (
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                <span>Processing...</span>
+              </div>
+            ) : confirmLabel}
           </button>
         </div>
       </div>

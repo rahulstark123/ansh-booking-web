@@ -222,13 +222,13 @@ export default function ContactsPage() {
       />
       <ConfirmDialog
         open={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
+        onCancel={() => setShowDeleteConfirm(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete contact?"
-        description={`Are you sure you want to delete "${contacts.find(c => c.id === deletingId)?.name ?? "this contact"}"? This will permanently remove their details and meeting history.`}
+        title={`Delete "${contacts.find(c => c.id === deletingId)?.name ?? "this contact"}"?`}
+        message="This action will permanently remove this contact from your database and all associated meeting history. This cannot be undone."
         confirmLabel="Delete"
-        variant="danger"
-        loading={isDeleting}
+        tone="danger"
+        busy={isDeleting}
       />
     </motion.div>
   );
