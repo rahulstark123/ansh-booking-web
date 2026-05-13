@@ -217,6 +217,15 @@ export default function ContactsPage() {
         onClose={closeAddContact}
         onSave={handleSaveContact}
       />
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Contact"
+        description="Are you sure you want to delete this contact? This action cannot be undone and will remove all associated history."
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </motion.div>
   );
 }
