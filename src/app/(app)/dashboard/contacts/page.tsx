@@ -35,6 +35,7 @@ export default function ContactsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [form, setForm] = useState<ContactForm>(EMPTY_CONTACT_FORM);
   const { data, isLoading, isError } = useContacts(user?.id, { page, pageSize, q: search, filter: "all" });
   const contacts = data?.items ?? [];
@@ -83,6 +84,7 @@ export default function ContactsPage() {
 
   async function handleConfirmDelete() {
     if (!user?.id || !deletingId) return;
+    setIsDeleting(true);
     try {
       const client = await getSupabaseBrowserClient();
       if (!client) throw new Error("Supabase is not configured");
@@ -95,6 +97,7 @@ export default function ContactsPage() {
     } catch {
       showToast({ kind: "error", title: "Delete failed", message: "Could not delete contact." });
     } finally {
+      setIsDeleting(false);
       setDeletingId(null);
       setShowDeleteConfirm(false);
     }
@@ -221,10 +224,11 @@ export default function ContactsPage() {
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete Contact"
-        description="Are you sure you want to delete this contact? This action cannot be undone and will remove all associated history."
+        title="Delete contact?"
+        description={`Are you sure you want to delete "${contacts.find(c => c.id === deletingId)?.name ?? "this contact"}"? This will permanently remove their details and meeting history.`}
         confirmLabel="Delete"
         variant="danger"
+        loading={isDeleting}
       />
     </motion.div>
   );
